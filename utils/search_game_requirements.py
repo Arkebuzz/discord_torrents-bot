@@ -19,8 +19,6 @@ async def search_requirements(title):
         elif i not in '!"№;%:?*()_+\'.,':
             name += i
 
-    print(name)
-
     url = f'https://vgtimes.ru/games/{name}/system-requirements/'
 
     async with aiohttp.ClientSession() as session:
@@ -31,7 +29,17 @@ async def search_requirements(title):
     contents = str(soup.find('div', {'class': 'req'}))
 
     if contents == 'None':
-        return False
+        url = f'https://vgtimes.ru/games/{name}/system-requirements/'
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                contents = await resp.text()
+
+        soup = BeautifulSoup(contents, 'html.parser')
+        contents = str(soup.find('div', {'class': 'min'}))
+
+        if contents == 'None':
+            return False
 
     soup = BeautifulSoup(contents, 'html.parser')
     res = ''
@@ -79,4 +87,4 @@ async def search_requirements(title):
 
 
 # if __name__ == '__main__':
-    # print(search_requirements('Homeworld Remastered Collection'))
+# print(search_requirements('Homeworld Remastered Collection'))

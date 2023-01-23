@@ -11,7 +11,7 @@ class Flipping(disnake.ui.View):
     """
 
     def __init__(self, mx, value=0):
-        super().__init__(timeout=60)
+        super().__init__(timeout=300)
         self.value = value
         self.res = None
         self.mx = mx
@@ -23,7 +23,6 @@ class Flipping(disnake.ui.View):
             self.res = self.mx - 1
 
         await inter.response.defer()
-        # await inter.delete_original_response()
 
         self.stop()
 
@@ -34,11 +33,15 @@ class Flipping(disnake.ui.View):
             self.res = 0
 
         await inter.response.defer()
-        # await inter.delete_original_response()
 
         self.stop()
 
     @disnake.ui.button(label='Скачать', style=disnake.ButtonStyle.green)
-    async def confirm(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = str(self.res) if self.res is not None else str(self.value)
+    async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'd' + str(self.res) if self.res is not None else 'd' + str(self.value)
+        self.stop()
+
+    @disnake.ui.button(label='Оценить', style=disnake.ButtonStyle.green)
+    async def vote(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'v' + str(self.res) if self.res is not None else 'v' + str(self.value)
         self.stop()
