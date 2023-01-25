@@ -10,7 +10,7 @@ def create_db(path=PATH):
         cur.execute('''CREATE TABLE IF NOT EXISTS games(
            name TEXT PRIMARY KEY, 
            user_id INTEGER,
-           message_id TEXT,
+           messages_id TEXT,
            dir_name TEXT,
            version TEXT,
            genre TEXT,
@@ -27,7 +27,36 @@ def create_db(path=PATH):
            num_downloads INTEGER,
            num_votes INTEGER);
            ''')
+        cur.execute('''CREATE TABLE IF NOT EXISTS guilds(
+           id INTEGER PRIMARY KEY,
+           channel_id INTEGER);
+           ''')
         conn.commit()
+
+
+def game_guild_settings(guild_id, channel_id, path=PATH):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute('SELECT * FROM guilds WHERE id = ?;', (guild_id,))
+        res = cur.fetchall()
+
+        if res:
+            cur.execute('UPDATE guilds SET channel_id = ? WHERE id = ?', (guild_id, channel_id))
+        else:
+            cur.execute('INSERT INTO guilds VALUES(?, ?)', (guild_id, channel_id))
+
+        conn.commit()
+
+
+def get_guild_channel(path=PATH):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute('SELECT * FROM guilds;')
+        res = cur.fetchall()
+
+        return res
 
 
 def check_game(name, d_name, path=PATH):
@@ -43,50 +72,6 @@ def check_game(name, d_name, path=PATH):
             return name
         if len(d_name):
             return d_name[0][0]
-        return False
-
-
-def add_reaction(mes, user_id, react, path=PATH):
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute(
-            f'SELECT user_voted, score FROM games WHERE message_id LIKE "%{mes}%" AND user_voted NOT LIKE "%{user_id}%"'
-        )
-
-        res = cur.fetchall()
-
-        if res:
-            users, score = res[0]
-            users = users.split()
-            len_users = len(users)
-
-            cur.execute(f'UPDATE games SET score = ?, user_voted = ? WHERE message_id LIKE "%{mes}%"',
-                        ((len_users * score + react) / (len_users + 1), ' '.join(users + [str(user_id)])))
-
-            return True
-        return False
-
-
-def del_reaction(mes, user_id, react, path=PATH):
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute(
-            f'SELECT user_voted, score FROM games WHERE message_id LIKE "%{mes}%" AND user_voted LIKE "%{user_id}%"')
-        res = cur.fetchall()
-
-        if res:
-            users, score = res[0]
-            users = users.split()
-            len_users = len(users)
-            del users[users.index(str(user_id))]
-
-            cur.execute(f'UPDATE games SET score = ?, user_voted = ? WHERE message_id LIKE "%{mes}%"',
-                        ((len_users * score - react) / ((len_users - 1) if len_users > 1 else 1),
-                         ' '.join(users)))
-
-            return True
         return False
 
 
@@ -146,6 +131,73 @@ def search_game(name=None, genre=None, gtype=None, path=PATH):
         return list(res)
 
 
+def add_reaction(mes, user_id, react, path=PATH):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute(
+            f'SELECT user_voted, score, name FROM games '
+            f'WHERE messages_id LIKE "%{mes}%" AND user_voted NOT LIKE "%{user_id}%"'
+        )
+        res = cur.fetchall()
+
+        if res:
+            users, score, name = res[0]
+            users = users.split()
+            len_users = len(users)
+
+            cur.execute('UPDATE games SET score = ?, user_voted = ? WHERE name = ?',
+                        ((len_users * score + react) / (len_users + 1), ' '.join(users + [str(user_id)]), name))
+
+            cur.execute(f'SELECT num_votes FROM users WHERE user_id = ?', (user_id,))
+            res = cur.fetchall()
+
+            if res:
+                cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?', (res[0][0] + 1, user_id))
+            else:
+                cur.execute('INSERT INTO users VALUES(?, 0, 0, 1);', (user_id,))
+
+            conn.commit()
+
+            return True
+        return False
+
+
+def del_reaction(mes, user_id, react, path=PATH):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute(
+            f'SELECT user_voted, score, name FROM games '
+            f'WHERE messages_id LIKE "%{mes}%" AND user_voted LIKE "%{user_id}%"'
+        )
+        res = cur.fetchall()
+
+        if res:
+            users, score, name = res[0]
+            users = users.split()
+            len_users = len(users)
+            del users[users.index(str(user_id))]
+
+            cur.execute('UPDATE games SET score = ?, user_voted = ? WHERE name = ?',
+                        ((len_users * score - react) / ((len_users - 1) if len_users > 1 else 1),
+                         ' '.join(users), name))
+
+            cur.execute(f'SELECT num_votes FROM users WHERE user_id = ?', (user_id,))
+            res = cur.fetchall()
+
+            if res:
+                cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?',
+                            (res[0][0] - 1 if res[0][0] > 0 else 0, user_id))
+            else:
+                cur.execute('INSERT INTO users VALUES(?, 0, 0, 0);', (user_id,))
+
+            conn.commit()
+
+            return True
+        return False
+
+
 def new_download(game_n, user_id, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
@@ -183,17 +235,3 @@ def top_users(path=PATH):
 
 def key4users(a):
     return a[1] * 3 + a[2] + a[3] * 2
-
-
-def test(p=r'C:\Users\Arkebuzz\Documents\Python\ds_bot\media\game.db'):
-    with sqlite3.connect(p) as conn:
-        cur = conn.cursor()
-
-        cur.execute('SELECT * FROM games')
-        res = cur.fetchall()
-
-        print(res)
-
-
-if __name__ == '__main__':
-    test()

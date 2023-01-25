@@ -6,10 +6,13 @@ from disnake.ext import commands
 from config import TOKEN, IDS
 from utils.db import create_db, add_reaction, del_reaction
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
 if not os.path.isdir('media/torrents'):
     os.makedirs('media/torrents')
     create_db()
 
+from cogs.commands import OtherCommand
 from utils.logger import logger
 
 bot = commands.InteractionBot(test_guilds=IDS)
@@ -19,6 +22,17 @@ bot.load_extension('cogs.commands')
 @bot.event
 async def on_ready():
     logger.info('Bot started')
+
+
+@bot.event
+async def on_guild_join(guild: disnake.Intents.guilds):
+    for i in guild.text_channels:
+        try:
+            await i.send('Для первоначальной настройки бота используйте функцию /option.\n'
+                         'Бот не будет корректно работать, пока Вы этого не сделаете.')
+            break
+        except disnake.errors.Forbidden:
+            continue
 
 
 @bot.event

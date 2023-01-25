@@ -31,7 +31,7 @@ class SelectGameType(disnake.ui.View):
         self.value: Optional[str] = None
         self.followup = followup
 
-    @disnake.ui.string_select(placeholder='Выберете типы игры ...',
+    @disnake.ui.string_select(placeholder='Выберите типы игры ...',
                               min_values=0,
                               max_values=3,
                               options=[disnake.SelectOption(label=l, description=d) for l, d in TYPE_OPTION])
@@ -57,7 +57,7 @@ class SelectGameGenre(disnake.ui.View):
         self.value: Optional[str] = None
         self.followup = followup
 
-    @disnake.ui.string_select(placeholder='Выберете жанры игры ...',
+    @disnake.ui.string_select(placeholder='Выберите жанры игры ...',
                               min_values=0,
                               max_values=9,
                               options=[disnake.SelectOption(label=l) for l in GENRE_OPTION])

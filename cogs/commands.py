@@ -17,6 +17,16 @@ class OtherCommand(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
+        name='option',
+        description='Выбрать основной канал для бота.'
+    )
+    async def option(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
+        game_guild_settings(inter.guild_id, channel.id)
+
+        await inter.response.send_message('Выполнена настройка основного канала для бота, '
+                                          f'теперь основной канал - {channel}')
+
+    @commands.slash_command(
         name='info',
         description='Информация о боте.',
     )
@@ -37,13 +47,12 @@ class OtherCommand(commands.Cog):
         emb.add_field(name='Версия:', value='beta v0.6')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.6\n'
-                            '+Добавлена возможность оценки игр.\n'
-                            '+Реализовано логирование.\n'
-                            '+Открыт исходный код.\n'
-                            '~Переделан поиск по жанрам.\n'
-                            '~Исправление мелких недочётов.\n'
-                            '~Реорганизация кода.'
+                      value='```diff\nv0.6.1\n'
+                            '+Теперь бот хостится постоянно!\n'
+                            '+Реализована возможность использования бота на нескольких серверах.\n'
+                            '+Добавлены подсказки при поиске по играм.\n'
+                            '~Исправлены ошибки и мелкие недочёты.\n'
+                            '~Произведена реорганизация кода.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'
@@ -91,7 +100,7 @@ class GameCommand(commands.Cog):
 
     @commands.slash_command(
         name='search',
-        description='Ищет игры по названию или жанрам. Выберете вариант поиска'
+        description='Ищет игры по названию или жанрам. Выберите вариант поиска.'
     )
     async def search(self, inter: disnake.ApplicationCommandInteraction,
                      stype: str = commands.Param(choices=['Поиск по названию', 'Поиск по жанру', 'Поиск по типу']),
@@ -154,7 +163,7 @@ class GameCommand(commands.Cog):
         if not ln:
             emb = disnake.Embed(
                 title='Данной игры нет в БД!',
-                description=f'Игр c данными тегами нет в базе данных бота. '
+                description='Игр c данными тегами нет в базе данных бота. '
                             'Вы можете добавить новые игры при помощи команды "/new_game"',
                 color=disnake.Colour.red()
             )
@@ -175,9 +184,43 @@ class GameCommand(commands.Cog):
                     await inter.edit_original_response(embed=emb, files=fls, view=None)
                     new_download(res[int(i[1:])][0], inter.author.id)
                     logger.info(f'[FINISHED] <@{inter.author.id}> /search : game {name} is downloaded')
+
                 else:
+                    mes_id = res[int(i[1:])][2].split()
+
+                    for j in mes_id:
+                        j = list(map(int, j.split('/')))
+                        ch = self.bot.get_channel(j[0])
+                        mes = int(j[1])
+
+                        if inter.guild_id == ch.guild.id:
+                            url = str(ch.guild.id) + '/' + str(ch.id) + '/' + str(mes)
+                            break
+                    else:
+                        emb = disnake.Embed(title='Добавлена новая игра!', color=disnake.Colour.blue())
+                        emb.add_field(name='Название:', value=res[int(i[1:])][0])
+                        emb.add_field(name='Версия:', value=res[int(i[1:])][4])
+                        emb.add_field(name='Тип игры:', value=res[int(i[1:])][6], inline=False)
+                        emb.add_field(name='Жанр игры:', value=res[int(i[1:])][5], inline=False)
+                        emb.add_field(name='Системные требования:', value=res[int(i[1:])][7], inline=False)
+                        emb.add_field(name='Описание:', value=res[int(i[1:])][8], inline=False)
+                        emb.add_field(name='Автор добавления:', value='<@' + str(res[int(i[1:])][1]) + '>',
+                                      inline=False)
+
+                        emb.set_footer(text='Оцените игру при помощи реакций под этим сообщением.')
+
+                        mes = await inter.channel.send(embed=emb)
+                        await mes.add_reaction('1️⃣')
+                        await mes.add_reaction('2️⃣')
+                        await mes.add_reaction('3️⃣')
+                        await mes.add_reaction('4️⃣')
+                        await mes.add_reaction('5️⃣')
+
+                        url = str(mes.guild.id) + '/' + str(mes.channel.id) + '/' + str(mes.id)
+                        game_guild_settings(res[int(i[1:])][0], res[int(i[1:])][2] + ' ' + url)
+
                     emb = disnake.Embed(title=res[int(i[1:])][0], color=disnake.Colour.blue(),
-                                        description=f'https://discord.com/channels/' + res[int(i[1:])][2])
+                                        description=f'https://discord.com/channels/' + url)
                     await inter.edit_original_response(embed=emb, view=None)
                 break
 
@@ -196,9 +239,14 @@ class GameCommand(commands.Cog):
             await inter.edit_original_response(embed=emb, view=view)
             await view.wait()
             i = view.res
+
         else:
             await inter.delete_original_response()
             logger.warning(f'[FINISHED] <@{inter.author.id}> /search : time`s up')
+
+    @search.autocomplete('name')
+    async def option_autocomp(self, inter: disnake.ApplicationCommandInteraction, string: str):
+        return [name[0] for name in search_game(string)]
 
     @commands.slash_command(
         name='new_game',
@@ -293,19 +341,24 @@ class GameCommand(commands.Cog):
         emb.add_field(name='Автор добавления:', value=inter.author.mention, inline=False)
         emb.set_footer(text='Оцените игру при помощи реакций под этим сообщением.')
 
-        mes = await inter.channel.send(embed=emb)
-        await mes.add_reaction('1️⃣')
-        await mes.add_reaction('2️⃣')
-        await mes.add_reaction('3️⃣')
-        await mes.add_reaction('4️⃣')
-        await mes.add_reaction('5️⃣')
+        mess = []
+        for channel in get_guild_channel():
+            ch = self.bot.get_channel(channel[1])
+            mes = await ch.send(embed=emb)
+
+            await mes.add_reaction('1️⃣')
+            await mes.add_reaction('2️⃣')
+            await mes.add_reaction('3️⃣')
+            await mes.add_reaction('4️⃣')
+            await mes.add_reaction('5️⃣')
+
+            mess.append(str(ch.id) + '/' + str(mes.id))
 
         if not os.path.isdir(f'media/torrents/{file_name}'):
             os.mkdir(f'media/torrents/{file_name}')
             await torrent.save(f'media/torrents/{file_name}/' + file_name + '.torrent')
 
-            mes_id = str(mes.guild.id) + '/' + str(mes.channel.id) + '/' + str(mes.id)
-
+            mes_id = ' '.join(mess)
             new_game(name, inter.author.id, mes_id, file_name, version, genre_g, type_g, req, des)
 
             if fix is not None:
