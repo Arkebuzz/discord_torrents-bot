@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 from config import PATH_DB as PATH
@@ -9,6 +10,7 @@ def create_db(path=PATH):
 
         cur.execute('''CREATE TABLE IF NOT EXISTS games(
            name TEXT PRIMARY KEY, 
+           img TEXT,
            user_id INTEGER,
            messages_id TEXT,
            dir_name TEXT,
@@ -49,11 +51,15 @@ def game_guild_settings(guild_id, channel_id, path=PATH):
         conn.commit()
 
 
-def get_guild_channel(path=PATH):
+def get_guilds(gid=None, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
-        cur.execute('SELECT * FROM guilds;')
+        if gid is None:
+            cur.execute('SELECT * FROM guilds;')
+        else:
+            cur.execute('SELECT * FROM guilds WHERE id = ?', (gid, ))
+
         res = cur.fetchall()
 
         return res
@@ -75,7 +81,7 @@ def check_game(name, d_name, path=PATH):
         return False
 
 
-def new_game(name, user_id, mes_id, d_name, version, genre, gtype, sys, description, path=PATH):
+def new_game(name, img, user_id, mes_id, d_name, version, genre, gtype, sys, description, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
@@ -87,8 +93,8 @@ def new_game(name, user_id, mes_id, d_name, version, genre, gtype, sys, descript
             cur.execute('UPDATE users SET num_added = ? WHERE user_id = ?;', (res[0][0] + 1, user_id))
 
         cur.execute(
-            'INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, "");',
-            (name, user_id, mes_id, d_name, version, genre, gtype, sys, description))
+            'INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, "");',
+            (name, img, user_id, mes_id, d_name, version, genre, gtype, sys, description))
 
         conn.commit()
 
@@ -235,3 +241,18 @@ def top_users(path=PATH):
 
 def key4users(a):
     return a[1] * 3 + a[2] + a[3] * 2
+
+
+def test(path='../media/game.db'):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute('SELECT * FROM games')
+        res = cur.fetchall()
+
+        print(res)
+
+
+if __name__ == '__main__':
+    print(os.getcwd())
+    test()

@@ -1,5 +1,4 @@
 import random
-import os
 
 import disnake
 from disnake.ext import commands
@@ -9,7 +8,7 @@ from cogs.select_menu import SelectGameType, SelectGameGenre
 from cogs.buttons import Flipping
 from utils.db import *
 from utils.logger import logger
-from utils.search_game_requirements import search_requirements
+from utils.search_game_requirements import search_requirements, search_images
 
 
 class OtherCommand(commands.Cog):
@@ -47,12 +46,12 @@ class OtherCommand(commands.Cog):
         emb.add_field(name='Версия:', value='beta v0.6')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.6.1\n'
-                            '+Теперь бот хостится постоянно!\n'
-                            '+Реализована возможность использования бота на нескольких серверах.\n'
-                            '+Добавлены подсказки при поиске по играм.\n'
-                            '~Исправлены ошибки и мелкие недочёты.\n'
-                            '~Произведена реорганизация кода.'
+                      value='```diff\nv0.7\n'
+                            '+Повышена плавность изменения сообщений при добавлении новых игр.'
+                            '+Добавлен автоматический поиск фото к игре (работает вместе с автопоиском системных '
+                            'требований, не найдены системные требования - не будет фото).'
+                            '+Автообновление всех серверов при запуске бота.'
+                            '-Обнаружена ошибка подсчёта оценки игры.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'
@@ -175,18 +174,13 @@ class GameCommand(commands.Cog):
         while i is not None:
             if type(i) is str:
                 if i[0] == 'd':
-                    fls = []
-                    path = f'media/torrents/{res[int(i[1:])][3]}/'
 
-                    for file in os.listdir(path):
-                        fls.append(disnake.File(path + file))
-
-                    await inter.edit_original_response(embed=emb, files=fls, view=None)
+                    await inter.edit_original_response(embed=emb, view=None)
                     new_download(res[int(i[1:])][0], inter.author.id)
                     logger.info(f'[FINISHED] <@{inter.author.id}> /search : game {name} is downloaded')
 
                 else:
-                    mes_id = res[int(i[1:])][2].split()
+                    mes_id = res[int(i[1:])][3].split()
 
                     for j in mes_id:
                         j = list(map(int, j.split('/')))
@@ -199,14 +193,14 @@ class GameCommand(commands.Cog):
                     else:
                         emb = disnake.Embed(title='Добавлена новая игра!', color=disnake.Colour.blue())
                         emb.add_field(name='Название:', value=res[int(i[1:])][0])
-                        emb.add_field(name='Версия:', value=res[int(i[1:])][4])
-                        emb.add_field(name='Тип игры:', value=res[int(i[1:])][6], inline=False)
-                        emb.add_field(name='Жанр игры:', value=res[int(i[1:])][5], inline=False)
-                        emb.add_field(name='Системные требования:', value=res[int(i[1:])][7], inline=False)
-                        emb.add_field(name='Описание:', value=res[int(i[1:])][8], inline=False)
-                        emb.add_field(name='Автор добавления:', value='<@' + str(res[int(i[1:])][1]) + '>',
+                        emb.add_field(name='Версия:', value=res[int(i[1:])][5])
+                        emb.add_field(name='Тип игры:', value=res[int(i[1:])][7], inline=False)
+                        emb.add_field(name='Жанр игры:', value=res[int(i[1:])][6], inline=False)
+                        emb.add_field(name='Системные требования:', value=res[int(i[1:])][8], inline=False)
+                        emb.add_field(name='Описание:', value=res[int(i[1:])][9], inline=False)
+                        emb.add_field(name='Автор добавления:', value='<@' + str(res[int(i[1:])][2]) + '>',
                                       inline=False)
-
+                        emb.set_image(res[int(i[1:])][1])
                         emb.set_footer(text='Оцените игру при помощи реакций под этим сообщением.')
 
                         mes = await inter.channel.send(embed=emb)
@@ -225,14 +219,15 @@ class GameCommand(commands.Cog):
                 break
 
             emb = disnake.Embed(title=res[i][0], color=disnake.Colour.blue())
-            emb.add_field(name='Версия:', value=res[i][4])
-            emb.add_field(name='Количество скачиваний:', value=res[i][9])
-            emb.add_field(name='Оценка:', value=res[i][10])
-            emb.add_field(name='Тип игры:', value=res[i][6], inline=False)
-            emb.add_field(name='Жанр игры:', value=res[i][5], inline=False)
-            emb.add_field(name='Системные требования:', value=res[i][7], inline=False)
-            emb.add_field(name='Описание:', value=res[i][8], inline=False)
-            emb.add_field(name='Автор добавления:', value='<@' + str(res[i][1]) + '>', inline=False)
+            emb.add_field(name='Версия:', value=res[i][5])
+            emb.add_field(name='Количество скачиваний:', value=res[i][10])
+            emb.add_field(name='Оценка:', value=res[i][11].score)
+            emb.add_field(name='Тип игры:', value=res[i][7], inline=False)
+            emb.add_field(name='Жанр игры:', value=res[i][6], inline=False)
+            emb.add_field(name='Системные требования:', value=res[i][8], inline=False)
+            emb.add_field(name='Описание:', value=res[i][9], inline=False)
+            emb.add_field(name='Автор добавления:', value='<@' + str(res[i][2]) + '>', inline=False)
+            emb.set_image(res[i][1])
             emb.set_footer(text=f'Страница {i + 1 if i >= 0 else ln + i + 1}/{ln}')
 
             view = Flipping(ln, i)
@@ -312,9 +307,10 @@ class GameCommand(commands.Cog):
         version = md.res[1][1]
         req = md.res[2][1]
         des = md.res[3][1]
+        inter = md.inter
 
-        view = SelectGameType(followup=True)
-        await inter.followup.send(view=view, ephemeral=True)
+        view = SelectGameType()
+        await inter.edit_original_response(view=view)
         await view.wait()
         type_g = ', '.join(view.value)
 
@@ -322,14 +318,20 @@ class GameCommand(commands.Cog):
             logger.warning(f'[FINISHED] <@{inter.author.id}> /new_game : game type not selected, time is up')
             return
 
-        view = SelectGameGenre(followup=True)
-        await inter.followup.send(view=view, ephemeral=True)
+        view = SelectGameGenre()
+        await inter.edit_original_response(view=view)
         await view.wait()
         genre_g = ', '.join(view.value)
 
         if genre_g is None:
             logger.warning(f'[FINISHED] <@{inter.author.id}> /new_game : game genre not selected, time is up')
             return
+
+        await inter.edit_original_response('Игра в процессе добавления, ожидайте ...', view=None)
+
+        os.mkdir(f'media/torrents/{file_name}')
+
+        await search_images(name, file_name)
 
         emb = disnake.Embed(title='Добавлена новая игра!', color=disnake.Colour.blue())
         emb.add_field(name='Название:', value=name)
@@ -342,9 +344,13 @@ class GameCommand(commands.Cog):
         emb.set_footer(text='Оцените игру при помощи реакций под этим сообщением.')
 
         mess = []
-        for channel in get_guild_channel():
+        url = ''
+        for channel in get_guilds():
             ch = self.bot.get_channel(channel[1])
-            mes = await ch.send(embed=emb)
+
+            mes = await ch.send(embed=emb, file=disnake.File(
+                f'media/torrents/{file_name}/' + os.listdir(f'media/torrents/{file_name}')[0]))
+            url = mes.attachments[0].url
 
             await mes.add_reaction('1️⃣')
             await mes.add_reaction('2️⃣')
@@ -354,17 +360,17 @@ class GameCommand(commands.Cog):
 
             mess.append(str(ch.id) + '/' + str(mes.id))
 
-        if not os.path.isdir(f'media/torrents/{file_name}'):
-            os.mkdir(f'media/torrents/{file_name}')
-            await torrent.save(f'media/torrents/{file_name}/' + file_name + '.torrent')
+        await torrent.save(f'media/torrents/{file_name}/' + file_name + '.torrent')
 
-            mes_id = ' '.join(mess)
-            new_game(name, inter.author.id, mes_id, file_name, version, genre_g, type_g, req, des)
+        mes_id = ' '.join(mess)
+        new_game(name, url, inter.author.id, mes_id, file_name, version, genre_g, type_g, req, des)
 
-            if fix is not None:
-                await fix.save(f'media/torrents/{file_name}/' + fix.filename)
+        if fix is not None:
+            await fix.save(f'media/torrents/{file_name}/' + fix.filename)
 
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game is added {name}, {genre_g}, {type_g}')
+        await inter.delete_original_response()
+
+        logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game is added {name}, {genre_g}, {type_g}')
 
     @commands.slash_command(
         name='game_top',

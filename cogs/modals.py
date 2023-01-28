@@ -17,6 +17,7 @@ class NewGameModal(disnake.ui.Modal):
                                                             'CPU: Pentium 4 @ 1.8 GHz\n'
                                                             'GPU: GeForce 6000 / better с 128 MB памяти\n...'):
         self.res = None
+        self.inter = None
         self.time = time.time()
 
         components = [
@@ -54,11 +55,11 @@ class NewGameModal(disnake.ui.Modal):
         )
 
     async def wait(self):
-        while self.res is None and time.time() - self.time < 600:
+        while self.res is None and self.inter is None and time.time() - self.time < 600:
             await asyncio.sleep(1)
 
     async def callback(self, inter: disnake.ModalInteraction):
         self.res = list(inter.text_values.items())
+        self.inter = inter
 
-        await inter.response.defer()
-        await inter.delete_original_response()
+        await inter.response.defer(ephemeral=True)

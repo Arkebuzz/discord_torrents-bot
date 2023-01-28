@@ -1,25 +1,34 @@
+import os
+import re
+
 import aiohttp
+import aiofiles
+
 from bs4 import BeautifulSoup
 
 
-async def search_requirements(title):
-    name = ''
+def name_conversion(name):
+    res = ''
     f = False
 
-    for i in title:
+    for i in name:
         if f and i != ' ' and i not in '!"№;%:?*()_+\'.,/\\':
-            name += '-' + i
-
+            res += '-' + i
+            f = False
         elif f and i == ' ':
             f = False
         elif i == ' ':
-            name += '-'
+            res += '-'
         elif i in '-−–—':
             f = True
         elif i not in '!"№;%:?*()_+\'.,':
-            name += i
+            res += i
 
-    url = f'https://vgtimes.ru/games/{name}/system-requirements/'
+    return res
+
+
+async def search_requirements(title):
+    url = f'https://vgtimes.ru/games/{name_conversion(title)}/system-requirements/'
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -29,13 +38,6 @@ async def search_requirements(title):
     contents = str(soup.find('div', {'class': 'req'}))
 
     if contents == 'None':
-        url = f'https://vgtimes.ru/games/{name}/system-requirements/'
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                contents = await resp.text()
-
-        soup = BeautifulSoup(contents, 'html.parser')
         contents = str(soup.find('div', {'class': 'min'}))
 
         if contents == 'None':
@@ -47,3 +49,36 @@ async def search_requirements(title):
         res += tag.text.replace('/', '|').replace('\\', '|') + '\n'
 
     return res
+
+
+async def search_images(title, file):
+    url = f'https://vgtimes.ru/games/{name_conversion(title)}/system-requirements/'
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            contents = await resp.text()
+
+    soup = BeautifulSoup(contents, 'html.parser')
+
+    photo = soup.find('li', {'data-thumb': re.compile(r'https://files.vgtimes.ru/gallery/thumb\S')})
+
+    # photo = soup.find('li', {'data-src': re.compile(r'https://files.vgtimes.ru/gallery/main/\S')})
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(photo['data-src']) as resp:
+                if resp.status == 200:
+                    f = await aiofiles.open(f'media/torrents/{file}/img.{resp.content_type.split("/")[-1]}', mode='wb')
+                    await f.write(await resp.read())
+                    await f.close()
+    except aiohttp.ClientConnectorError:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(photo['data-src']) as resp:
+                    if resp.status == 200:
+                        f = await aiofiles.open(f'media/torrents/{file}/img.{resp.content_type.split("/")[-1]}',
+                                                mode='wb')
+                        await f.write(await resp.read())
+                        await f.close()
+        except aiohttp.ClientConnectorError:
+            pass
