@@ -37,7 +37,7 @@ class OtherCommand(commands.Cog):
         :return:
         """
 
-        logger.info(f'[CALL] /info  <@{inter.author.id}>')
+        logger.info(f'[CALL] <@{inter.author.id}> /info')
 
         emb = disnake.Embed(title='Информация о боте:', color=disnake.Colour.blue())
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
@@ -46,12 +46,12 @@ class OtherCommand(commands.Cog):
         emb.add_field(name='Версия:', value='beta v0.6')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.7\n'
+                      value='```diff\nv0.7.1\n'
                             '+Повышена плавность изменения сообщений при добавлении новых игр.'
                             '+Добавлен автоматический поиск фото к игре (работает вместе с автопоиском системных '
                             'требований, не найдены системные требования - не будет фото).'
                             '+Автообновление всех серверов при запуске бота.'
-                            '-Обнаружена ошибка подсчёта оценки игры.'
+                            '~Исправлена ошибка неправильного подсчёта оценки игры.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'
@@ -218,10 +218,13 @@ class GameCommand(commands.Cog):
                     await inter.edit_original_response(embed=emb, view=None)
                 break
 
+            sc = json.loads(res[i][11])
+            score = sum(sc.values()) / len(sc) if res[i][11] else 0
+
             emb = disnake.Embed(title=res[i][0], color=disnake.Colour.blue())
             emb.add_field(name='Версия:', value=res[i][5])
             emb.add_field(name='Количество скачиваний:', value=res[i][10])
-            emb.add_field(name='Оценка:', value=res[i][11].score)
+            emb.add_field(name='Оценка:', value=score)
             emb.add_field(name='Тип игры:', value=res[i][7], inline=False)
             emb.add_field(name='Жанр игры:', value=res[i][6], inline=False)
             emb.add_field(name='Системные требования:', value=res[i][8], inline=False)
@@ -240,7 +243,7 @@ class GameCommand(commands.Cog):
             logger.warning(f'[FINISHED] <@{inter.author.id}> /search : time`s up')
 
     @search.autocomplete('name')
-    async def option_autocomp(self, inter: disnake.ApplicationCommandInteraction, string: str):
+    async def option_autocomp(self, _, string: str):
         return [name[0] for name in search_game(string)]
 
     @commands.slash_command(
@@ -388,9 +391,9 @@ class GameCommand(commands.Cog):
         games = top_games()
 
         emb = disnake.Embed(title='Топ игр', color=disnake.Colour.blue())
-        emb.add_field(name='Игра', value='\n'.join([i[0] for i in games]))
-        emb.add_field(name='Загрузки', value='\n'.join([str(i[1]) for i in games]))
-        emb.add_field(name='Рейтинг', value='\n'.join([str(i[2]) for i in games]))
+        emb.add_field(name='Игра', value='\n'.join([i[2] for i in games]))
+        emb.add_field(name='Загрузки', value='\n'.join([str(i[0]) for i in games]))
+        emb.add_field(name='Рейтинг', value='\n'.join([str(i[1]) for i in games]))
 
         await inter.response.send_message(embed=emb)
 

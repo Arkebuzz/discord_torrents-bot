@@ -1,4 +1,3 @@
-import os
 import re
 
 import aiohttp
@@ -61,8 +60,6 @@ async def search_images(title, file):
     soup = BeautifulSoup(contents, 'html.parser')
 
     photo = soup.find('li', {'data-thumb': re.compile(r'https://files.vgtimes.ru/gallery/thumb\S')})
-
-    # photo = soup.find('li', {'data-src': re.compile(r'https://files.vgtimes.ru/gallery/main/\S')})
 
     try:
         async with aiohttp.ClientSession() as session:

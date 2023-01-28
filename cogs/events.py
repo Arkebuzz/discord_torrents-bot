@@ -64,6 +64,8 @@ class BotEvents(commands.Cog):
     async def on_guild_join(self, guild: disnake.Intents.guilds):
         await refresh(self.bot)
 
+        logger.info(f'[NEW GUILD] <{guild.id}>')
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: disnake.RawReactionActionEvent):
         if payload.user_id == 1065653420364660766:
@@ -82,8 +84,8 @@ class BotEvents(commands.Cog):
             else:
                 emoji = 5
 
-            if add_reaction(payload.message_id, payload.user_id, emoji):
-                logger.info(f'[NEW REACT] {payload.user_id} {emoji}')
+            add_reaction(payload.message_id, payload.user_id, emoji)
+            logger.info(f'[NEW REACT] <@{payload.user_id}> {emoji}')
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: disnake.RawReactionActionEvent):
@@ -103,8 +105,8 @@ class BotEvents(commands.Cog):
             else:
                 emoji = 5
 
-            if del_reaction(payload.message_id, payload.user_id, emoji):
-                logger.info(f'[DEL REACT] {payload.user_id} {emoji}')
+            del_reaction(payload.message_id, payload.user_id, emoji)
+            logger.info(f'[DEL REACT] <@{payload.user_id}> {emoji}')
 
 
 def setup(bot: commands.Bot):
