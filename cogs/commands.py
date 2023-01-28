@@ -43,15 +43,15 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='beta v0.6')
+        emb.add_field(name='Версия:', value='beta v0.7.2')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.7.1\n'
+                      value='```diff\nv0.7.2\n'
                             '+Повышена плавность изменения сообщений при добавлении новых игр.'
                             '+Добавлен автоматический поиск фото к игре (работает вместе с автопоиском системных '
                             'требований, не найдены системные требования - не будет фото).'
                             '+Автообновление всех серверов при запуске бота.'
-                            '~Исправлена ошибка неправильного подсчёта оценки игры.'
+                            '~Исправлена ошибка неправильного подсчёта оценки игры и количества оценок пользователей.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'

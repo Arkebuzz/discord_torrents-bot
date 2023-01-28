@@ -33,6 +33,7 @@ def create_db(path=PATH):
            id INTEGER PRIMARY KEY,
            channel_id INTEGER);
            ''')
+
         conn.commit()
 
 
@@ -153,10 +154,18 @@ def add_reaction(mes, user_id, react, path=PATH):
         users, name = res[0]
         users = json.loads(users)
 
+        if str(user_id) not in users:
+            cur.execute('SELECT num_votes FROM users WHERE user_id = ?', (user_id, ))
+            num = cur.fetchall()[0][0]
+            cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;',
+                        (num + 1, user_id))
+
         users[str(user_id)] = react
 
         cur.execute('UPDATE games SET user_voted = ? WHERE name = ?;',
                     (json.dumps(users), name))
+
+        conn.commit()
 
 
 def del_reaction(mes, user_id, react, path=PATH):
@@ -164,7 +173,7 @@ def del_reaction(mes, user_id, react, path=PATH):
         cur = conn.cursor()
 
         cur.execute(
-            f'SELECT user_voted, name FROM games '
+            'SELECT user_voted, name FROM games '
             f'WHERE messages_id LIKE "%{mes}%";'
         )
         res = cur.fetchall()
@@ -180,6 +189,13 @@ def del_reaction(mes, user_id, react, path=PATH):
 
             cur.execute('UPDATE games SET user_voted = ? WHERE name = ?;',
                         (json.dumps(users), name))
+
+            cur.execute('SELECT num_votes FROM users WHERE user_id = ?', (user_id, ))
+            num = cur.fetchall()[0][0]
+            cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;',
+                        (num - 1 if num > 0 else 0, user_id))
+
+        conn.commit()
 
 
 def new_download(game_n, user_id, path=PATH):
@@ -226,7 +242,7 @@ def test(path='../media/game.db'):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
-        cur.execute('SELECT user_voted FROM games;')
+        cur.execute('SELECT * FROM users;')
         res = cur.fetchall()
 
         print(res)
