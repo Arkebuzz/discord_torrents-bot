@@ -13,7 +13,6 @@ def create_db(path=PATH):
            name TEXT PRIMARY KEY, 
            img TEXT,
            user_id INTEGER,
-           messages_id TEXT,
            dir_name TEXT,
            version TEXT,
            genre TEXT,
@@ -37,7 +36,7 @@ def create_db(path=PATH):
         conn.commit()
 
 
-def game_guild_settings(guild_id, channel_id, path=PATH):
+def update_guild_settings(guild_id, channel_id, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
@@ -48,6 +47,15 @@ def game_guild_settings(guild_id, channel_id, path=PATH):
             cur.execute('UPDATE guilds SET channel_id = ? WHERE id = ?;', (guild_id, channel_id))
         else:
             cur.execute('INSERT INTO guilds VALUES(?, ?);', (guild_id, channel_id))
+
+        conn.commit()
+
+
+def guild_remove(guild_id, path=PATH):
+    with sqlite3.connect(path) as conn:
+        cur = conn.cursor()
+
+        cur.execute('DELETE FROM guilds WHERE id = ?;', (guild_id,))
 
         conn.commit()
 
@@ -82,7 +90,7 @@ def check_game(name, d_name, path=PATH):
         return False
 
 
-def new_game(name, img, user_id, mes_id, d_name, version, genre, gtype, sys, description, path=PATH):
+def new_game(name, img, user_id, d_name, version, genre, gtype, sys, description, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
@@ -94,8 +102,8 @@ def new_game(name, img, user_id, mes_id, d_name, version, genre, gtype, sys, des
             cur.execute('UPDATE users SET num_added = ? WHERE user_id = ?;', (res[0][0] + 1, user_id))
 
         cur.execute(
-            'INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, "{}");',
-            (name, img, user_id, mes_id, d_name, version, genre, gtype, sys, description))
+            'INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 0, "{}");',
+            (name, img, user_id, d_name, version, genre, gtype, sys, description))
 
         conn.commit()
 
@@ -138,62 +146,27 @@ def search_game(name=None, genre=None, gtype=None, path=PATH):
         return list(res)
 
 
-def add_reaction(mes, user_id, react, path=PATH):
+def add_reaction(name, user_id, react, path=PATH):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
-        cur.execute(
-            'SELECT user_voted, name FROM games '
-            f'WHERE messages_id LIKE "%{mes}%";'
-        )
+        cur.execute(f'SELECT user_voted FROM games WHERE name = ?;', (name,))
         res = cur.fetchall()
 
         if not res:
             return
 
-        users, name = res[0]
-        users = json.loads(users)
+        users = json.loads(res[0][0])
 
         if str(user_id) not in users:
-            cur.execute('SELECT num_votes FROM users WHERE user_id = ?', (user_id, ))
+            cur.execute('SELECT num_votes FROM users WHERE user_id = ?', (user_id,))
             num = cur.fetchall()[0][0]
-            cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;',
-                        (num + 1, user_id))
+            cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;', (num + 1, user_id))
 
         users[str(user_id)] = react
 
         cur.execute('UPDATE games SET user_voted = ? WHERE name = ?;',
                     (json.dumps(users), name))
-
-        conn.commit()
-
-
-def del_reaction(mes, user_id, react, path=PATH):
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute(
-            'SELECT user_voted, name FROM games '
-            f'WHERE messages_id LIKE "%{mes}%";'
-        )
-        res = cur.fetchall()
-
-        if not res:
-            return
-
-        users, name = res[0]
-        users = json.loads(users)
-
-        if users.setdefault(str(user_id), -1) == react:
-            del users[str(user_id)]
-
-            cur.execute('UPDATE games SET user_voted = ? WHERE name = ?;',
-                        (json.dumps(users), name))
-
-            cur.execute('SELECT num_votes FROM users WHERE user_id = ?', (user_id, ))
-            num = cur.fetchall()[0][0]
-            cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;',
-                        (num - 1 if num > 0 else 0, user_id))
 
         conn.commit()
 
@@ -218,10 +191,18 @@ def top_games(path=PATH):
         cur = conn.cursor()
 
         cur.execute('SELECT name, num_downloads, user_voted FROM games;')
-        res = [(d, sum(json.loads(s).values()) / len(json.loads(s)) if json.loads(s) else 0, n) for n, d, s in
-               cur.fetchall()]
+        games = []
+        for name, down, votes in cur.fetchall():
+            votes = json.loads(votes)
+            sc = 0
 
-        return sorted(res, reverse=True)[:5]
+            for vote in votes:
+                sc += int(votes[vote][0])
+
+            score = sc / len(votes) if votes else 0
+
+            games.append((score, down, name))
+        return sorted(games, reverse=True)[:5]
 
 
 def top_users(path=PATH):
@@ -242,7 +223,7 @@ def test(path='../media/game.db'):
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
 
-        cur.execute('SELECT * FROM users;')
+        cur.execute('SELECT * FROM games;')
         res = cur.fetchall()
 
         print(res)

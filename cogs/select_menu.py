@@ -26,10 +26,9 @@ class SelectGameType(disnake.ui.View):
     :attribute value: Выбор пользователя.
     """
 
-    def __init__(self, followup=False):
+    def __init__(self):
         super().__init__(timeout=60)
         self.value: Optional[str] = None
-        self.followup = followup
 
     @disnake.ui.string_select(placeholder='Выберите типы игры ...',
                               min_values=0,
@@ -40,8 +39,6 @@ class SelectGameType(disnake.ui.View):
         self.stop()
 
         await inter.response.defer()
-        if self.followup:
-            await inter.delete_original_response()
 
 
 class SelectGameGenre(disnake.ui.View):
@@ -52,10 +49,9 @@ class SelectGameGenre(disnake.ui.View):
     :attribute value: Выбор пользователя.
     """
 
-    def __init__(self, followup=False):
+    def __init__(self):
         super().__init__(timeout=60)
         self.value: Optional[str] = None
-        self.followup = followup
 
     @disnake.ui.string_select(placeholder='Выберите жанры игры ...',
                               min_values=0,
@@ -66,5 +62,3 @@ class SelectGameGenre(disnake.ui.View):
         self.stop()
 
         await inter.response.defer()
-        if self.followup:
-            await inter.delete_original_response()

@@ -2,24 +2,22 @@ import disnake
 from disnake.ext import commands
 
 from config import IDS
-from utils.db import add_reaction, del_reaction, get_guilds
+from utils.db import guild_remove
 from utils.logger import logger
 
 
 async def refresh(bot):
     logger.info('[START] guilds refresh')
-    flag = False
 
-    for guild in bot.guilds:
-        if guild.id not in IDS:
-            flag = True
-            IDS.append(guild.id)
+    guilds = [g.id for g in bot.guilds]
 
-            logger.info(f'[IN PROGRESS] guilds refresh : {guild.id} not in IDS -> append')
+    if IDS != guilds:
+        for guild in set(IDS) - set(guilds):
+            guild_remove(guild)
+            logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {guild.id}')
 
-        if not get_guilds(guild.id):
-
-            g = bot.get_guild(guild.id)
+        for guild in set(guilds) - set(IDS):
+            g = bot.get_guild(guild)
 
             for channel in g.text_channels:
                 try:
@@ -29,31 +27,29 @@ async def refresh(bot):
                 except disnake.errors.Forbidden:
                     continue
 
-            logger.warning(f'[IN PROGRESS] guilds refresh : {guild.id} not in DB -> warning sent')
+            logger.warning(f'[IN PROGRESS] guilds refresh : {guild} not in DB -> warning sent')
 
-    ids = map(str, IDS)
+        ids = [str(g.id) for g in bot.guilds]
 
-    with open('config.py', 'r') as f:
-        text = ''
-        for line in f:
-            if 'IDS' in line:
-                text += 'IDS = [' + ', '.join(ids) + ']\n'
-            else:
-                text += line
+        with open('config.py', 'r') as f:
+            text = ''
+            for line in f:
+                if 'IDS' in line:
+                    text += 'IDS = [' + ', '.join(ids) + ']\n'
+                else:
+                    text += line
 
-    with open('config.py', 'w') as f:
-        f.write(text)
-
-    if flag:
-        logger.warning('[FINISHED] guilds refresh NEED RESTART')
+        with open('config.py', 'w') as f:
+            f.write(text)
 
         import os
         import sys
 
-        os.execv(sys.executable, [sys.executable, __file__] + sys.argv)
+        logger.warning(f'[FINISHED] guilds refresh : BOT NEED RESTART')
 
-    else:
-        logger.info('[FINISHED] guilds refresh')
+        os.execv(sys.executable, [sys.executable, sys.argv[0]])
+
+    logger.info('[FINISHED] guilds refresh')
 
 
 class BotEvents(commands.Cog):
@@ -62,51 +58,57 @@ class BotEvents(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: disnake.Intents.guilds):
-        await refresh(self.bot)
-
         logger.info(f'[NEW GUILD] <{guild.id}>')
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: disnake.RawReactionActionEvent):
-        if payload.user_id == 1065653420364660766:
-            return
-
-        emoji = str(payload.emoji)
-        if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
-            if emoji == '1️⃣':
-                emoji = 1
-            elif emoji == '2️⃣':
-                emoji = 2
-            elif emoji == '3️⃣':
-                emoji = 3
-            elif emoji == '4️⃣':
-                emoji = 4
-            else:
-                emoji = 5
-
-            add_reaction(payload.message_id, payload.user_id, emoji)
-            logger.info(f'[NEW REACT] <@{payload.user_id}> {emoji}')
+        await refresh(self.bot)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: disnake.RawReactionActionEvent):
-        if payload.user_id == 1065653420364660766:
-            return
+    async def on_guild_remove(self, guild: disnake.Intents.guilds):
+        logger.info(f'[DEL GUILD] <{guild.id}>')
 
-        emoji = str(payload.emoji)
-        if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
-            if emoji == '1️⃣':
-                emoji = 1
-            elif emoji == '2️⃣':
-                emoji = 2
-            elif emoji == '3️⃣':
-                emoji = 3
-            elif emoji == '4️⃣':
-                emoji = 4
-            else:
-                emoji = 5
+        await refresh(self.bot)
 
-            del_reaction(payload.message_id, payload.user_id, emoji)
-            logger.info(f'[DEL REACT] <@{payload.user_id}> {emoji}')
+    # @commands.Cog.listener()
+    # async def on_raw_reaction_add(self, payload: disnake.RawReactionActionEvent):
+    #     if payload.user_id == 1065653420364660766:
+    #         return
+    #
+    #     emoji = str(payload.emoji)
+    #     if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
+    #         if emoji == '1️⃣':
+    #             emoji = 1
+    #         elif emoji == '2️⃣':
+    #             emoji = 2
+    #         elif emoji == '3️⃣':
+    #             emoji = 3
+    #         elif emoji == '4️⃣':
+    #             emoji = 4
+    #         else:
+    #             emoji = 5
+    #
+    #         add_reaction(payload.message_id, payload.user_id, emoji)
+    #         logger.info(f'[NEW REACT] <@{payload.user_id}> {emoji}')
+    #
+    # @commands.Cog.listener()
+    # async def on_raw_reaction_remove(self, payload: disnake.RawReactionActionEvent):
+    #     if payload.user_id == 1065653420364660766:
+    #         return
+    #
+    #     emoji = str(payload.emoji)
+    #     if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
+    #         if emoji == '1️⃣':
+    #             emoji = 1
+    #         elif emoji == '2️⃣':
+    #             emoji = 2
+    #         elif emoji == '3️⃣':
+    #             emoji = 3
+    #         elif emoji == '4️⃣':
+    #             emoji = 4
+    #         else:
+    #             emoji = 5
+    #
+    #         del_reaction(payload.message_id, payload.user_id, emoji)
+    #         logger.info(f'[DEL REACT] <@{payload.user_id}> {emoji}')
 
 
 def setup(bot: commands.Bot):

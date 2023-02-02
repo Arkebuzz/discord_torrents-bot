@@ -11,7 +11,7 @@ def name_conversion(name):
     f = False
 
     for i in name:
-        if f and i != ' ' and i not in '!"№;%:?*()_+\'.,/\\':
+        if f and i not in ' !"№;%:?*()_+`\'.,/\\':
             res += '-' + i
             f = False
         elif f and i == ' ':
@@ -20,7 +20,7 @@ def name_conversion(name):
             res += '-'
         elif i in '-−–—':
             f = True
-        elif i not in '!"№;%:?*()_+\'.,':
+        elif i not in '!"№;%:?*()_+`\'.,/\\':
             res += i
 
     return res
