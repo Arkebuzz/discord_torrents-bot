@@ -68,48 +68,6 @@ class BotEvents(commands.Cog):
 
         await refresh(self.bot)
 
-    # @commands.Cog.listener()
-    # async def on_raw_reaction_add(self, payload: disnake.RawReactionActionEvent):
-    #     if payload.user_id == 1065653420364660766:
-    #         return
-    #
-    #     emoji = str(payload.emoji)
-    #     if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
-    #         if emoji == '1️⃣':
-    #             emoji = 1
-    #         elif emoji == '2️⃣':
-    #             emoji = 2
-    #         elif emoji == '3️⃣':
-    #             emoji = 3
-    #         elif emoji == '4️⃣':
-    #             emoji = 4
-    #         else:
-    #             emoji = 5
-    #
-    #         add_reaction(payload.message_id, payload.user_id, emoji)
-    #         logger.info(f'[NEW REACT] <@{payload.user_id}> {emoji}')
-    #
-    # @commands.Cog.listener()
-    # async def on_raw_reaction_remove(self, payload: disnake.RawReactionActionEvent):
-    #     if payload.user_id == 1065653420364660766:
-    #         return
-    #
-    #     emoji = str(payload.emoji)
-    #     if emoji in '1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣':
-    #         if emoji == '1️⃣':
-    #             emoji = 1
-    #         elif emoji == '2️⃣':
-    #             emoji = 2
-    #         elif emoji == '3️⃣':
-    #             emoji = 3
-    #         elif emoji == '4️⃣':
-    #             emoji = 4
-    #         else:
-    #             emoji = 5
-    #
-    #         del_reaction(payload.message_id, payload.user_id, emoji)
-    #         logger.info(f'[DEL REACT] <@{payload.user_id}> {emoji}')
-
 
 def setup(bot: commands.Bot):
     bot.add_cog(BotEvents(bot))

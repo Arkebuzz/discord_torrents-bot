@@ -1,4 +1,3 @@
-import asyncio
 import random
 
 import disnake
@@ -44,10 +43,10 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='beta v0.8.1')
+        emb.add_field(name='Версия:', value='beta v0.8.2')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.8.1\n'
+                      value='```diff\nv0.8.2\n'
                             '+Изменён способ оценки игр: теперь это происходит во всплывающем окне.\n'
                             '+Реализована возможность добавления и просмотра комментариев к играм.\n'
                             '~Поиск игр разделён на 2 независимые команды:\n'
