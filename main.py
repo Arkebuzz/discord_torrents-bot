@@ -22,6 +22,12 @@ bot.load_extension('cogs.events')
 
 @bot.event
 async def on_ready():
+    """
+    Выполняется, когда бот запустился.
+
+    :return:
+    """
+
     logger.info('Bot started')
     await refresh(bot)
 

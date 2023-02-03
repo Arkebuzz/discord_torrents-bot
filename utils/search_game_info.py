@@ -7,6 +7,13 @@ from bs4 import BeautifulSoup
 
 
 def name_conversion(name):
+    """
+    Изменяет вводимое название под стандарт веб-ссылки.
+
+    :param name:
+    :return:
+    """
+
     res = ''
     f = False
 
@@ -27,6 +34,13 @@ def name_conversion(name):
 
 
 async def search_requirements(title):
+    """
+    Ищет системные требования игры по названию.
+
+    :param title: Название игры.
+    :return:
+    """
+
     url = f'https://vgtimes.ru/games/{name_conversion(title)}/system-requirements/'
 
     async with aiohttp.ClientSession() as session:
@@ -50,7 +64,15 @@ async def search_requirements(title):
     return res
 
 
-async def search_images(title, file):
+async def search_images(title, path):
+    """
+    Ищет системные требования игры по названию.
+
+    :param title: Название игры.
+    :param path: Путь к папке с файлами игры.
+    :return:
+    """
+
     url = f'https://vgtimes.ru/games/{name_conversion(title)}/system-requirements/'
 
     async with aiohttp.ClientSession() as session:
@@ -65,7 +87,7 @@ async def search_images(title, file):
         async with aiohttp.ClientSession() as session:
             async with session.get(photo['data-src']) as resp:
                 if resp.status == 200:
-                    f = await aiofiles.open(f'media/torrents/{file}/img.{resp.content_type.split("/")[-1]}', mode='wb')
+                    f = await aiofiles.open(f'media/torrents/{path}/img.{resp.content_type.split("/")[-1]}', mode='wb')
                     await f.write(await resp.read())
                     await f.close()
     except aiohttp.ClientConnectorError:
@@ -73,7 +95,7 @@ async def search_images(title, file):
             async with aiohttp.ClientSession() as session:
                 async with session.get(photo['data-src']) as resp:
                     if resp.status == 200:
-                        f = await aiofiles.open(f'media/torrents/{file}/img.{resp.content_type.split("/")[-1]}',
+                        f = await aiofiles.open(f'media/torrents/{path}/img.{resp.content_type.split("/")[-1]}',
                                                 mode='wb')
                         await f.write(await resp.read())
                         await f.close()

@@ -2,6 +2,8 @@ import asyncio
 import random
 import time
 
+from typing import Optional
+
 import disnake
 from disnake import TextInputStyle
 
@@ -11,12 +13,14 @@ class GameModal(disnake.ui.Modal):
     Класс - модальное окно, принимает данные об игре.
 
     :attribute res: Значения введенные пользователем.
+    :attribute inter: Объект сообщения.
     """
 
     def __init__(self, title, system_req='', placeholder_sr='Введите системные требования игры ...\n'):
-        self.res = None
-        self.inter = None
+        self.res: Optional[list[str]] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
         self.time = time.time()
+        self.out = 300
 
         components = [
             disnake.ui.TextInput(
@@ -50,10 +54,13 @@ class GameModal(disnake.ui.Modal):
             title='Сведения об игре',
             custom_id=str(random.random()),
             components=components,
+            timeout=self.out
         )
 
     async def wait(self):
-        while self.res is None and self.inter is None and time.time() - self.time < 600:
+        """Выполняется, пока время на ответ не истечет."""
+
+        while self.res is None and self.inter is None and time.time() - self.time < self.out:
             await asyncio.sleep(1)
 
     async def callback(self, inter: disnake.ModalInteraction):
@@ -68,12 +75,14 @@ class VoteModal(disnake.ui.Modal):
     Класс - модальное окно, принимает комментарий с оценкой к игре.
 
     :attribute res: Значения введенные пользователем.
+    :attribute inter: Объект сообщения.
     """
 
     def __init__(self):
         self.res = None
         self.inter = None
         self.time = time.time()
+        self.out = 300
 
         components = [
             disnake.ui.TextInput(
@@ -95,10 +104,13 @@ class VoteModal(disnake.ui.Modal):
             title='Добавление отзыва',
             custom_id=str(random.random()),
             components=components,
+            timeout=self.out
         )
 
     async def wait(self):
-        while self.res is None and self.inter is None and time.time() - self.time < 120:
+        """Выполняется, пока время на ответ не истечет."""
+
+        while self.res is None and self.inter is None and time.time() - self.time < self.out:
             await asyncio.sleep(1)
 
     async def callback(self, inter: disnake.ModalInteraction):

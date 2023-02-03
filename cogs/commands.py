@@ -16,10 +16,18 @@ class OtherCommand(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='option',
+        name='settings',
         description='Выбрать основной канал для бота.'
     )
-    async def option(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
+    async def settings(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
+        """
+        Слэш-команда, производит настройку канала для бота на сервере.
+
+        :param inter:
+        :param channel:
+        :return:
+        """
+
         update_guild_settings(inter.guild_id, channel.id)
 
         await inter.response.send_message('Выполнена настройка основного канала для бота, '
@@ -43,16 +51,18 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='beta v0.8.2')
+        emb.add_field(name='Версия:', value='beta v0.8.3')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.8.2\n'
+                      value='```diff\nv0.8.3\n'
                             '+Изменён способ оценки игр: теперь это происходит во всплывающем окне.\n'
                             '+Реализована возможность добавления и просмотра комментариев к играм.\n'
                             '~Поиск игр разделён на 2 независимые команды:\n'
                             '    search_game4name - поиск игр по названию;\n'
                             '    search_game4type - поиск игр по жанровой принадлежности.\n'
-                            '~Исправлены ошибки в автопоиске системных требований и фото к играм.'
+                            '~Исправлены ошибки в автопоиске системных требований и фото к играм.\n'
+                            '~Изменены названия некоторых команд\n'
+                            '~Косметические изменения и исправления багов.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'
@@ -252,7 +262,7 @@ class GameSearchCommand(commands.Cog):
             emb = disnake.Embed(title=games[i][0], color=disnake.Colour.blue())
             emb.add_field(name='Версия:', value=games[i][4])
             emb.add_field(name='Количество скачиваний:', value=games[i][9])
-            emb.add_field(name='Оценка:', value=score)
+            emb.add_field(name='Оценка:', value=str(score)[:4])
             emb.add_field(name='Тип игры:', value=games[i][6], inline=False)
             emb.add_field(name='Жанр игры:', value=games[i][5], inline=False)
             emb.add_field(name='Системные требования:', value=games[i][7], inline=False)
@@ -299,7 +309,7 @@ class GameSearchCommand(commands.Cog):
                         emb.set_footer(text=f'Страница {j + 1}/{len(com)}')
 
                         for c in range(len(com[j])):
-                            emb.add_field(com[j][c][0], com[j][c][1])
+                            emb.add_field(com[j][c][0], com[j][c][1], inline=False)
 
                         view = CommentsList(len(com), j)
                         await temp_inter.edit_original_response(embed=emb, view=view)
@@ -428,12 +438,13 @@ class Statistic(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='game_top',
+        name='top_games',
         description='Топ игр по количеству скачиваний.',
     )
-    async def game_top(self, inter: disnake.ApplicationCommandInteraction):
+    async def top_games(self, inter: disnake.ApplicationCommandInteraction):
         """
         Слэш-команда, выводит топ игр по количеству скачиваний.
+
         :param inter:
         :return:
         """
@@ -444,18 +455,19 @@ class Statistic(commands.Cog):
 
         emb = disnake.Embed(title='Топ игр', color=disnake.Colour.blue())
         emb.add_field(name='Игра', value='\n'.join([i[2] for i in games]))
-        emb.add_field(name='Рейтинг', value='\n'.join([str(i[0]) for i in games]))
+        emb.add_field(name='Рейтинг', value='\n'.join([str(i[0])[:4] for i in games]))
         emb.add_field(name='Загрузки', value='\n'.join([str(i[1]) for i in games]))
 
         await inter.response.send_message(embed=emb)
 
     @commands.slash_command(
-        name='user_top',
+        name='top_users',
         description='Топ пользователей по количеству активности.',
     )
-    async def user_top(self, inter: disnake.ApplicationCommandInteraction):
+    async def top_users(self, inter: disnake.ApplicationCommandInteraction):
         """
         Слэш-команда, выводит топ пользователей по активности.
+
         :param inter:
         :return:
         """
@@ -473,6 +485,8 @@ class Statistic(commands.Cog):
 
 
 def setup(bot: commands.Bot):
+    """Регистрация команд бота."""
+
     bot.add_cog(OtherCommand(bot))
     bot.add_cog(GameSearchCommand(bot))
     bot.add_cog(GameNewCommand(bot))

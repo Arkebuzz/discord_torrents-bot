@@ -7,6 +7,13 @@ from utils.logger import logger
 
 
 async def refresh(bot):
+    """
+    Обновление БД и config.py бота.
+
+    :param bot:
+    :return:
+    """
+
     logger.info('[START] guilds refresh')
 
     guilds = [g.id for g in bot.guilds]
@@ -45,7 +52,7 @@ async def refresh(bot):
         import os
         import sys
 
-        logger.warning(f'[FINISHED] guilds refresh : BOT NEED RESTART')
+        logger.warning(f'[FINISHED] guilds refresh : BOT RESTARTING')
 
         os.execv(sys.executable, [sys.executable, sys.argv[0]])
 
@@ -53,21 +60,39 @@ async def refresh(bot):
 
 
 class BotEvents(commands.Cog):
+    """Класс, задающий активности на серверах."""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: disnake.Intents.guilds):
+        """
+        Выполняется, когда бот присоединяется к новому серверу.
+
+        :param guild:
+        :return:
+        """
+
         logger.info(f'[NEW GUILD] <{guild.id}>')
 
         await refresh(self.bot)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: disnake.Intents.guilds):
+        """
+        Выполняется, когда бот покидает сервер.
+
+        :param guild:
+        :return:
+        """
+
         logger.info(f'[DEL GUILD] <{guild.id}>')
 
         await refresh(self.bot)
 
 
 def setup(bot: commands.Bot):
+    """Регистрация активностей бота."""
+
     bot.add_cog(BotEvents(bot))

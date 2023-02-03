@@ -9,7 +9,7 @@ class Flipping(disnake.ui.View):
 
     :param mx: Количество страниц.
     :param current: Стартовая страница.
-    :attribute res: Значение текущей страницы.
+    :attribute value: Значение текущей страницы.
     """
 
     def __init__(self, mx, current=0):
@@ -44,6 +44,16 @@ class Flipping(disnake.ui.View):
 
 
 class GameList(Flipping):
+    """
+    Класс добавляет к сообщению 5 кнопки: вперёд, назад, оценить, комментарии, скачать.
+
+    :param mx: Количество страниц.
+    :param value: Стартовая страница.
+    :attribute value: Значение текущей страницы.
+    :attribute res: Выбор пользователя.
+    :attribute inter: Объект сообщения.
+    """
+
     def __init__(self, mx, value=0):
         super().__init__(mx, value)
         self.res: Optional[str] = None
@@ -69,6 +79,15 @@ class GameList(Flipping):
 
 
 class CommentsList(Flipping):
+    """
+    Класс добавляет к сообщению 5 кнопки: вперёд, назад, оценить, комментарии, скачать.
+
+    :param mx: Количество страниц.
+    :param value: Стартовая страница.
+    :attribute value: Значение текущей страницы.
+    :attribute res: Выбор пользователя.
+    """
+
     def __init__(self, mx, value=0):
         super().__init__(mx, value)
         self.res: Optional[str] = None
