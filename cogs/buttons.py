@@ -11,17 +11,18 @@ class Confirm(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=300)
         self.res: Optional[str] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
 
     @disnake.ui.button(label='Перейти к поиску', style=disnake.ButtonStyle.green)
     async def confirm(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'search'
-        await inter.response.defer()
+        self.inter = inter
         self.stop()
 
     @disnake.ui.button(label='Добавить игру', style=disnake.ButtonStyle.green)
     async def cancel(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'new_game'
-        await inter.response.defer()
+        self.inter = inter
         self.stop()
 
 

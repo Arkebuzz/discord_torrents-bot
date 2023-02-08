@@ -1,8 +1,6 @@
-import json
 import sqlite3
 
 from config import PATH_DB as PATH
-from config import GENRE_OPTIONS, TYPE_OPTIONS
 
 
 class DB:
@@ -144,6 +142,17 @@ class DB:
 
         return lastrowid
 
+    def check_game(self, name):
+        """
+        Проверяет есть ли игра в БД.
+
+        :param name:
+        :return:
+        """
+
+        self.cur.execute('SELECT * FROM games WHERE name = ?', (name,))
+        return self.cur.fetchall()
+
     def search_game(self, name=None, genre=None, gtype=None):
         """
         Поиск игр по названию, типу или жанру, если параметры не переданы, выводит все игры.
@@ -151,7 +160,7 @@ class DB:
         :param name: Название игры.
         :param genre: Жанры игры.
         :param gtype: Типы игры.
-        :return:
+        :return: name, id, user_id, img_url, version, genre, type, sys_requirements, description, downloads, score
         """
 
         if name is not None:
@@ -213,6 +222,22 @@ class DB:
 
         return list(res)
 
+    def get_versions(self, game):
+        self.cur.execute('''
+                SELECT game_name, id, user_id, img_url, version,  
+                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                sys_requirements, description
+                FROM versions
+                WHERE game_name = ?
+                ''', (game,)
+                         )
+        return self.cur.fetchall()
+
+    def get_comments(self, game):
+        self.cur.execute('SELECT user_id, score, message FROM comments WHERE game_name = ?', (game,))
+        return self.cur.fetchall()
+
     def new_download(self, game_n, user_id):
         """
         Обновляет данные о количестве загрузок игры и пользователя.
@@ -241,26 +266,31 @@ class DB:
         :return:
         """
 
-        self.cur.execute('INSERT INTO users VALUES(?, 0, 0, 1) ON CONFLICT (id) DO UPDATE SET votes = votes + 1',
-                         (user_id,))
-
         try:
             self.cur.execute(
-                'INSERT INTO comments VALUES(?, ?, ?, ?)',
+                'INSERT OR ABORT INTO comments VALUES(?, ?, ?, ?)',
                 (user_id, name, *react, *react)
             )
-        except:
             self.cur.execute(
-                'UPDATE users SET score = ?, message = ? WHERE id = ? AND game_name=?',
-                (user_id)
+                'INSERT INTO users VALUES(?, 0, 0, 1) ON CONFLICT (id) DO UPDATE SET votes = votes + 1',
+                (user_id,)
             )
-            ggg
+        except sqlite3.Error:
+            self.cur.execute(
+                'UPDATE comments SET score = ?, message = ? WHERE user_id = ? AND game_name=?',
+                (*react, user_id, name)
+            )
 
         self.conn.commit()
         self._update_game_score(name)
 
     def _update_game_score(self, game):
+        """
+        Пересчёт рейтинга игры по отзывам.
 
+        :param game:
+        :return:
+        """
         self.cur.execute('''
             UPDATE games
             SET score = (SELECT avg(score) FROM comments WHERE game_name = name)
@@ -300,10 +330,6 @@ class DB:
 
 if __name__ == '__main__':
     db = DB('db.db')
-
-    db.add_reaction('tetris', 10, [5, 'gg'])
-
-    print(db.top_users())
 
     # print(*db.get_tags(), sep='\n')
     # r = db.search_game(gtype=['одиночная игра'])

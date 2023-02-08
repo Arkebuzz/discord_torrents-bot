@@ -2,6 +2,8 @@ from typing import Optional
 
 import disnake
 
+from config import TYPE_OPTIONS, GENRE_OPTIONS
+
 
 class SelectGameType(disnake.ui.View):
     """
@@ -17,7 +19,7 @@ class SelectGameType(disnake.ui.View):
     @disnake.ui.string_select(placeholder='Выберите типы игры ...',
                               min_values=0,
                               max_values=3,
-                              options=[disnake.SelectOption(label=lab, description=d) for lab, d in TYPE_OPTION])
+                              options=[disnake.SelectOption(label=lab, description=d) for lab, d in TYPE_OPTIONS])
     async def select(self, string_select: disnake.ui.StringSelect, inter: disnake.ApplicationCommandInteraction):
         self.value = string_select.values
         self.stop()
@@ -39,7 +41,7 @@ class SelectGameGenre(disnake.ui.View):
     @disnake.ui.string_select(placeholder='Выберите жанры игры ...',
                               min_values=0,
                               max_values=9,
-                              options=[disnake.SelectOption(label=lab) for lab in GENRE_OPTION])
+                              options=[disnake.SelectOption(label=lab) for lab in GENRE_OPTIONS])
     async def select(self, string_select: disnake.ui.StringSelect, inter: disnake.ApplicationCommandInteraction):
         self.value = string_select.values
         self.stop()
