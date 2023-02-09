@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 from config import PATH_DB as PATH
 
@@ -69,6 +70,20 @@ class DB:
                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
                ''')
 
+    def update_guild_settings(self, guild_id, channel_id):
+        """
+        Обновляет настройки канала сервера.
+
+        :param guild_id: ID сервера.
+        :param channel_id: Новое ID канала.
+        :return:
+        """
+
+        self.cur.execute('INSERT INTO guilds VALUES(?, ?) ON CONFLICT (id) DO UPDATE SET channel_id = ?',
+                         (guild_id, channel_id, channel_id))
+
+        self.conn.commit()
+
     def get_guilds(self, guild_id=None):
         """
         Возвращает сервера бота c введенным ID, если ID не передан, то возвращает все сервера.
@@ -86,21 +101,7 @@ class DB:
 
         return res
 
-    def update_guild_settings(self, guild_id, channel_id):
-        """
-        Обновляет настройки канала сервера.
-
-        :param guild_id: ID сервера.
-        :param channel_id: Новое ID канала.
-        :return:
-        """
-
-        self.cur.execute('INSERT INTO guilds VALUES(?, ?) ON CONFLICT (id) DO UPDATE SET channel_id = ?',
-                         (guild_id, channel_id, channel_id))
-
-        self.conn.commit()
-
-    def guild_remove(self, guild_id):
+    def delete_guild(self, guild_id):
         """
         Удаление сервер из БД.
 
@@ -136,7 +137,7 @@ class DB:
             cur.executemany('INSERT INTO genre4version VALUES(?, ?)',
                             [(lastrowid, genre) for genre in game[4]])
             cur.executemany('INSERT INTO type4version VALUES(?, ?)',
-                            [(lastrowid, genre) for genre in game[5]])
+                            [(lastrowid, gtype) for gtype in game[5]])
 
             conn.commit()
 
@@ -222,16 +223,58 @@ class DB:
 
         return res
 
+    def get_version_simpl(self, name=None, version=None, user=None):
+        """
+        Краткий поиск версий в БД. Должен быть передан только1 параметр!
+
+        :param name:
+        :param version:
+        :param user:
+        :return:
+        """
+
+        if name is not None:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE game_name LIKE "%{name}%"
+                GROUP BY game_name
+                ''')
+        elif version is not None:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE version LIKE "%{version}%"
+                GROUP BY version
+                ''')
+        else:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE user_id LIKE "%{user}%"
+                GROUP BY user_id
+                ''')
+
+        return self.cur.fetchall()
+
     def get_versions(self, game):
-        self.cur.execute('''
+        if game:
+            self.cur.execute('''
                 SELECT game_name, id, user_id, img_url, version,  
                 (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
                 (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description
                 FROM versions
                 WHERE game_name = ?
-                ''', (game,)
-                         )
+                ''', (game,))
+        else:
+            self.cur.execute('''
+            SELECT game_name, id, user_id, img_url, version,  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description
+                FROM versions
+            ''')
         return self.cur.fetchall()
 
     def get_comments(self, game):
@@ -256,7 +299,7 @@ class DB:
 
         self.conn.commit()
 
-    def add_reaction(self, name, user_id, react):
+    def new_reaction(self, name, user_id, react):
         """
         Добавление отзыва к игре.
 
@@ -299,6 +342,15 @@ class DB:
 
         self.conn.commit()
 
+    def delete_version(self, name, version, user_id):
+        self.cur.execute('DELETE FROM versions '
+                         'WHERE game_name = ? AND version = ? AND user_id = ?',
+                         (name, version, user_id))
+
+        self.cur.execute('SELECT * FROM versions WHERE game_name = ?', (name,))
+        if not self.cur.fetchall():
+            self.cur.execute('DELETE FROM games WHERE name = ?', (name,))
+
     def top_games(self):
         """
         Возвращает все игры, отсортированные в порядке убывания скачиваний и комментариев.
@@ -326,33 +378,3 @@ class DB:
             ORDER BY added * 5 + votes * 3 + downloads DESC;
         ''')
         return self.cur.fetchall()
-
-
-if __name__ == '__main__':
-    db = DB('../media/game.db')
-
-    # db.add_reaction('Homeworld Remastered Collection', 11, (5, ''))
-
-    # print(*db.get_tags(), sep='\n')
-    # r = db.search_game(gtype=['одиночная игра'])
-    # print(*r, sep='\n')
-
-    # db.create_db()
-    # db.new_game(
-    #     ('ping pong', 2, 'url21', 'v1.0', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('ping pong', 2, 'url31', 'v1.9', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('ping pong', 2, 'url51', 'v0.5', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url01', 'v3.5', ['аркада'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url23', 'v1.5', ['аркада'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url221', 'v6.5', ['аркада'], ['одиночная игра'], '', '')
-    # )

@@ -83,6 +83,9 @@ async def search_images(title, file_name):
 
     photo = soup.find('li', {'data-thumb': re.compile(r'https://files.vgtimes.ru/gallery/thumb\S')})
 
+    if not photo:
+        return None
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(photo['data-src']) as resp:

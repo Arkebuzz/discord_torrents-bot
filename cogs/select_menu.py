@@ -17,8 +17,7 @@ class SelectGameType(disnake.ui.View):
         self.value: Optional[str] = None
 
     @disnake.ui.string_select(placeholder='Выберите типы игры ...',
-                              min_values=0,
-                              max_values=3,
+                              max_values=len(TYPE_OPTIONS),
                               options=[disnake.SelectOption(label=lab, description=d) for lab, d in TYPE_OPTIONS])
     async def select(self, string_select: disnake.ui.StringSelect, inter: disnake.ApplicationCommandInteraction):
         self.value = string_select.values
@@ -39,8 +38,7 @@ class SelectGameGenre(disnake.ui.View):
         self.value: Optional[str] = None
 
     @disnake.ui.string_select(placeholder='Выберите жанры игры ...',
-                              min_values=0,
-                              max_values=9,
+                              max_values=len(GENRE_OPTIONS),
                               options=[disnake.SelectOption(label=lab[0]) for lab in GENRE_OPTIONS])
     async def select(self, string_select: disnake.ui.StringSelect, inter: disnake.ApplicationCommandInteraction):
         self.value = string_select.values

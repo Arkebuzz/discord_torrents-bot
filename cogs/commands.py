@@ -1,4 +1,5 @@
 import random
+import shutil
 import os
 
 from disnake.ext import commands
@@ -6,6 +7,7 @@ from disnake.ext import commands
 from cogs.modals import GameModal, VoteModal
 from cogs.select_menu import SelectGameType, SelectGameGenre
 from cogs.buttons import *
+from config import ADMINS
 from utils.db import DB
 from utils.logger import logger
 from utils.search_game_info import search_requirements, search_images
@@ -35,6 +37,44 @@ class OtherCommand(commands.Cog):
         await inter.response.send_message('Выполнена настройка основного канала для бота, '
                                           f'теперь основной канал - {channel}')
 
+        logger.info(f'[CALL] <@{inter.author.id}> set_main_channel channel: {channel}')
+
+    @commands.slash_command(
+        name='delete_game',
+        description='Удалить версию игры'
+    )
+    async def delete_game(self, inter: disnake.ApplicationCommandInteraction,
+                          name: str, version: str, user_id: str):
+        """
+        Слэш-команда, позволяет админу удалить версию игры.
+
+        :param inter:
+        :param name:
+        :param version:
+        :param user_id:
+        :return:
+        """
+
+        if inter.author.id in ADMINS:
+            db.delete_version(name, version, user_id)
+            await inter.response.send_message('Все версии игр с заданными данными удалены!', ephemeral=True)
+            logger.info(f'[CALL] <@{inter.author.id}> /delete_game name: {name}, version: {version} GAME`s DELETE')
+        else:
+            await inter.response.send_message('У вас нет прав для выполнения данной операции!', ephemeral=True)
+            logger.info(f'[CALL] <@{inter.author.id}> /delete_game name: {name}, version: {version} NO RIGHTS')
+
+    @delete_game.autocomplete('name')
+    async def autocomplete(self, _, string: str):
+        return [name[0] for name in db.get_version_simpl(name=string)]
+
+    @delete_game.autocomplete('version')
+    async def autocomplete(self, _, string: str):
+        return [name[1] for name in db.get_version_simpl(version=string)]
+
+    @delete_game.autocomplete('user_id')
+    async def autocomplete(self, _, string: str):
+        return [str(name[2]) for name in db.get_version_simpl(user=string)]
+
     @commands.slash_command(
         name='info',
         description='Информация о боте.',
@@ -47,27 +87,25 @@ class OtherCommand(commands.Cog):
         :return:
         """
 
-        logger.info(f'[CALL] <@{inter.author.id}> /info')
-
         emb = disnake.Embed(title='Информация о боте:', color=disnake.Colour.blue())
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='beta v0.9.3')
+        emb.add_field(name='Версия:', value='release v1.0')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.9.3\n'
-                            '+Реализована возможность добавления нескольких версий игр.\n'
-                            '+Добавлены новые жанры и типы игр.\n'
-                            '~Переработана БД бота.\n'
+                      value='```diff\nv1.0\n'
+                            '+Оптимизирован просмотр версий игр.\n'
+                            '+Добавлена возможность удалять игры.\n'
                             '~Проведены оптимизация кода и исправление ошибок.'
                             '```', inline=False)
-        emb.set_footer(text='@Arkebuzz#7717    https://github.com/Arkebuzz/ds_bot',
+        emb.set_footer(text='@Arkebuzz#7717\nhttps://github.com/Arkebuzz/ds_bot',
                        icon_url='https://sun1-27.userapi.com/s/v1/ig1'
                                 '/FEUHI48F0M7K3DXhPtF_hChVzAsFiKAvaTvSG3966WmikzGIrLrj0u7UPX7o_zQ1vMW0x4CP.jpg?size'
                                 '=400x400&quality=96&crop=528,397,709,709&ava=1')
 
         await inter.response.send_message(embed=emb)
+        logger.info(f'[CALL] <@{inter.author.id}> /info')
 
     @commands.slash_command(
         name='ping',
@@ -245,6 +283,8 @@ class GameNewCommand(commands.Cog):
 
         path = db.new_game((name, inter.author.id, url, version, genre, gtype, req, des))
 
+        if os.path.isdir(f'media/torrents/{path}'):
+            shutil.rmtree(f'media/torrents/{path}')
         os.makedirs(f'media/torrents/{path}')
 
         await torrent.save(f'media/torrents/{path}/' + file_name + '.torrent')
@@ -290,7 +330,7 @@ class GameSearchCommand(commands.Cog):
             emb.add_field(name='Описание:', value=games[i][8], inline=False)
             emb.add_field(name='Автор добавления:', value='<@' + str(games[i][2]) + '>', inline=False)
             emb.set_image(games[i][3])
-            emb.set_footer(text=f'Страница {i + 1}/{ln}')
+            emb.set_footer(text=f'Страница {i + 1}/{ln}\n')
 
             view = GameList(ln, i)
             await inter.edit_original_response(content='', embed=emb, view=view)
@@ -301,36 +341,41 @@ class GameSearchCommand(commands.Cog):
                 temp_inter = view.inter
                 f = view.res
 
-                if f == 'download':
+                if f == 'versions':
                     await temp_inter.response.defer()
-                    await temp_inter.edit_original_response('Загрузка ...', embed=None, view=None)
-                    logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} CALL download')
+                    logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} CALL versions')
 
                     vers = db.get_versions(games[i][0])
 
                     j = 0
                     res = None
-                    while j is not None and res is None:
+                    while j is not None and res != 'back':
                         emb = disnake.Embed(title=f'Скачать {games[i][0]}', color=disnake.Colour.blue())
                         emb.add_field(name='Версия:', value=vers[j][4])
                         emb.add_field(name='Тип игры:', value=vers[j][6], inline=False)
                         emb.add_field(name='Жанр игры:', value=vers[j][5], inline=False)
                         emb.add_field(name='Описание:', value=vers[j][8], inline=False)
                         emb.add_field(name='Автор добавления:', value='<@' + str(vers[j][2]) + '>', inline=False)
-                        emb.set_footer(
-                            text=f'Страница {j + 1}/{len(vers)}\n'
-                                 f'Не нужно много раз нажимать на кнопки листания страниц, будьте терпеливы.'
-                        )
+                        emb.set_footer(text=f'Страница {j + 1}/{len(vers)}\n')
 
-                        fls = []
-                        for f in os.listdir(f'media/torrents/{vers[j][1]}/'):
-                            fls.append(disnake.File(f'media/torrents/{vers[j][1]}/' + f))
-
-                        view = FlippingBack(len(vers), j)
-                        await temp_inter.edit_original_response(content=None, embed=emb, view=view, files=fls)
+                        view = FlippingBackDownload(len(vers), j)
+                        await temp_inter.edit_original_response(content=None, embed=emb, view=view)
                         await view.wait()
                         j = view.value
                         res = view.res
+
+                        if res == 'download':
+                            fls = []
+                            for f in os.listdir(f'media/torrents/{vers[j][1]}/'):
+                                fls.append(disnake.File(f'media/torrents/{vers[j][1]}/' + f))
+
+                            await temp_inter.edit_original_response(view=None, files=fls)
+                            db.new_download(vers[j][0], inter.author.id)
+
+                            logger.info(
+                                f'[FINISHED] <@{inter.author.id}> /search : game {games[i][0]} is downloaded'
+                            )
+                            return
 
                     logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} FINISHED download')
                     await temp_inter.edit_original_response(embed=emb, view=view, attachments=None)
@@ -403,7 +448,7 @@ class GameSearchCommand(commands.Cog):
                     temp_inter = md.inter
 
                     if score in '12345':
-                        db.add_reaction(games[i][0], inter.author.id, [score, comment])
+                        db.new_reaction(games[i][0], inter.author.id, [score, comment])
                         await temp_inter.edit_original_response('Ваш отзыв добавлен!', )
                         logger.info(f'[NEW REACT] <@{inter.author.id}> game: {games[i][0]}; score: {score}')
 

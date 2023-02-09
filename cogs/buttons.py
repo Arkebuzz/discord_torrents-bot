@@ -26,6 +26,25 @@ class Confirm(disnake.ui.View):
         self.stop()
 
 
+class Back(disnake.ui.View):
+    """
+    Класс добавляет к сообщению 1 кнопку - вернуться к поиску.
+
+    :attribute res: Выбор пользователя.
+    """
+
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.res: Optional[str] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
+
+    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    async def back(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'r'
+        await inter.response.defer()
+        self.stop()
+
+
 class Flipping(disnake.ui.View):
     """
     Класс добавляет к сообщению 2 кнопки: вперёд и назад.
@@ -94,9 +113,9 @@ class GameList(Flipping):
         self.inter = inter
         self.stop()
 
-    @disnake.ui.button(label='Скачать', style=disnake.ButtonStyle.green)
-    async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'download'
+    @disnake.ui.button(label='Смотреть версии', style=disnake.ButtonStyle.green)
+    async def versions(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'versions'
         self.inter = inter
         self.stop()
 
@@ -116,26 +135,27 @@ class FlippingBack(Flipping):
         self.res: Optional[str] = None
 
     @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
-    async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'r'
+    async def back(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'back'
         await inter.response.defer()
         self.stop()
 
 
-class Back(disnake.ui.View):
+class FlippingBackDownload(FlippingBack):
     """
-    Класс добавляет к сообщению 1 кнопку - вернуться к поиску.
+    Класс добавляет к сообщению 4 кнопки: вперёд, назад, вернуться к поиску и скачать.
 
+    :param mx: Количество страниц.
+    :param value: Стартовая страница.
+    :attribute value: Значение текущей страницы.
     :attribute res: Выбор пользователя.
     """
 
-    def __init__(self):
-        super().__init__(timeout=300)
-        self.res: Optional[str] = None
-        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
+    def __init__(self, mx, value=0):
+        super().__init__(mx, value)
 
-    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='Скачать', style=disnake.ButtonStyle.green)
     async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'r'
+        self.res = 'download'
         await inter.response.defer()
         self.stop()
