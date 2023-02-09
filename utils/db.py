@@ -1,339 +1,358 @@
-import json
-import os
 import sqlite3
 
 from config import PATH_DB as PATH
 
 
-def create_db(path=PATH):
-    """
-    Создаёт БД по пути path.
+class DB:
+    def __init__(self, path=PATH):
+        self.path = path
+        self.conn = sqlite3.connect(path)
+        self.conn.execute('PRAGMA foreign_keys = ON;')
+        self.cur = self.conn.cursor()
 
-    :param path: Путь к БД.
-    :return:
-    """
+        self.create_db()
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+    def create_db(self):
+        """
+        Создаёт БД по пути path.
 
-        cur.execute('''CREATE TABLE IF NOT EXISTS games(
-           name TEXT PRIMARY KEY, 
-           img TEXT,
-           user_id INTEGER,
-           dir_name TEXT,
-           version TEXT,
-           genre TEXT,
-           type TEXT,
-           sys_requirements TEXT,
-           description TEXT,
-           num_downloads INTEGER,
-           user_voted TEXT);
-           ''')
-        cur.execute('''CREATE TABLE IF NOT EXISTS users(
-           user_id INTEGER PRIMARY KEY,
-           num_added INTEGER,
-           num_downloads INTEGER,
-           num_votes INTEGER);
-           ''')
-        cur.execute('''CREATE TABLE IF NOT EXISTS guilds(
-           id INTEGER PRIMARY KEY,
-           channel_id INTEGER);
-           ''')
+        :return:
+        """
 
-        conn.commit()
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS guilds(
+               id INTEGER PRIMARY KEY,
+               channel_id INTEGER);
+               ''')
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS users(
+               id INTEGER PRIMARY KEY,
+               added INTEGER,
+               downloads INTEGER,
+               votes INTEGER);
+               ''')
 
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS games(
+               name TEXT PRIMARY KEY,
+               downloads INTEGER,
+               score FLOAT);
+               ''')
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS versions(
+               id INTEGER PRIMARY KEY, 
+               game_name INTEGER,
+               version TEXT,
+               user_id INTEGER,
+               img_url TEXT,
+               sys_requirements TEXT,
+               description TEXT,
+               FOREIGN KEY(game_name) REFERENCES games(name) ON DELETE CASCADE,
+               FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+               ''')
 
-def update_guild_settings(guild_id, channel_id, path=PATH):
-    """
-    Обновляет настройки канала сервера.
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS genre4version(
+               version_id INTEGER,
+               genre TEXT, 
+               FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE);
+               ''')
 
-    :param guild_id: ID сервера.
-    :param channel_id: Новое ID канала.
-    :param path: Путь к БД.
-    :return:
-    """
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS type4version(
+               version_id INTEGER,
+               type TEXT,
+               FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE);
+               ''')
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS comments(
+               user_id INTEGER, 
+               game_name TEXT,
+               score INTEGER,
+               message TEXT,
+               PRIMARY KEY(user_id, game_name),
+               FOREIGN KEY(game_name) REFERENCES games(name) ON DELETE CASCADE,
+               FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+               ''')
 
-        cur.execute('SELECT * FROM guilds WHERE id = ?;', (guild_id,))
-        res = cur.fetchall()
+    def get_guilds(self, guild_id=None):
+        """
+        Возвращает сервера бота c введенным ID, если ID не передан, то возвращает все сервера.
 
-        if res:
-            cur.execute('UPDATE guilds SET channel_id = ? WHERE id = ?;', (guild_id, channel_id))
+        :param guild_id: ID сервера.
+        :return:
+        """
+
+        if guild_id is None:
+            self.cur.execute('SELECT * FROM guilds;')
         else:
-            cur.execute('INSERT INTO guilds VALUES(?, ?);', (guild_id, channel_id))
+            self.cur.execute('SELECT * FROM guilds WHERE id = ?;', (guild_id,))
 
-        conn.commit()
-
-
-def guild_remove(guild_id, path=PATH):
-    """
-    Удаление сервер из БД.
-
-    :param guild_id: ID сервера.
-    :param path: Путь к БД.
-    :return:
-    """
-
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute('DELETE FROM guilds WHERE id = ?;', (guild_id,))
-
-        conn.commit()
-
-
-def get_guilds(gid=None, path=PATH):
-    """
-    Возвращает сервера бота c введенным ID, если ID не передан, то возвращает все сервера.
-
-    :param gid: ID сервера.
-    :param path: Путь к БД.
-    :return:
-    """
-
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        if gid is None:
-            cur.execute('SELECT * FROM guilds;')
-        else:
-            cur.execute('SELECT * FROM guilds WHERE id = ?;', (gid,))
-
-        res = cur.fetchall()
+        res = self.cur.fetchall()
 
         return res
 
+    def update_guild_settings(self, guild_id, channel_id):
+        """
+        Обновляет настройки канала сервера.
 
-def check_game(name, d_name, path=PATH):
-    """
-    Проверяет наличие игры в БД по названию и пути.
+        :param guild_id: ID сервера.
+        :param channel_id: Новое ID канала.
+        :return:
+        """
 
-    :param name: Название игры.
-    :param d_name: Путь к игре.
-    :param path: Путь к БД.
-    :return:
-    """
+        self.cur.execute('INSERT INTO guilds VALUES(?, ?) ON CONFLICT (id) DO UPDATE SET channel_id = ?',
+                         (guild_id, channel_id, channel_id))
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        self.conn.commit()
 
-        cur.execute('SELECT * FROM games WHERE name = ?;', (name,))
-        name = cur.fetchall()
-        cur.execute('SELECT * FROM games WHERE dir_name = ?;', (d_name,))
-        d_name = cur.fetchall()
+    def guild_remove(self, guild_id):
+        """
+        Удаление сервер из БД.
 
-        if len(name):
-            return name
-        if len(d_name):
-            return d_name[0][0]
-        return False
+        :param guild_id: ID сервера.
+        :return:
+        """
 
+        self.cur.execute('DELETE FROM guilds WHERE id = ?;', (guild_id,))
+        self.conn.commit()
 
-def new_game(name, img, user_id, d_name, version, genre, gtype, sys, description, path=PATH):
-    """
-    Добавляет новую игры в БД.
+    def new_game(self, game):
+        """
+        Добавляет новую игру в БД.
 
-    :param name: Название игры.
-    :param img: Адрес фото игры.
-    :param user_id: ID пользователя, добавившего игру.
-    :param d_name: Путь к файлам игры.
-    :param version: Версия игры.
-    :param genre: Жанры игры.
-    :param gtype: Типы игра.
-    :param sys: Системные требования игры.
-    :param description: Описание игры.
-    :param path: Путь к БД.
-    :return:
-    """
+        :param game: list[name, user_id, img, version, list[genre], list[gtype], sys, description]
+        :return:
+        """
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('PRAGMA foreign_keys = ON;')
+            cur = conn.cursor()
 
-        cur.execute('SELECT num_added FROM users WHERE user_id = ?;', (user_id,))
-        res = cur.fetchall()
-        if len(res) == 0:
-            cur.execute('INSERT INTO users VALUES(?, ?, ?, ?);', (user_id, 1, 0, 0))
-        else:
-            cur.execute('UPDATE users SET num_added = ? WHERE user_id = ?;', (res[0][0] + 1, user_id))
+            cur.execute('INSERT INTO users VALUES(?, 1, 0, 0) ON CONFLICT (id) DO UPDATE SET added = added + 1',
+                        (game[1],))
 
-        cur.execute(
-            'INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 0, "{}");',
-            (name, img, user_id, d_name, version, genre, gtype, sys, description))
+            cur.execute('INSERT INTO games VALUES(?, 0, 0.0) ON CONFLICT (name) DO NOTHING', (game[0],))
 
-        conn.commit()
+            cur.execute('INSERT INTO versions VALUES(NULL, ?, ?, ?, ?, ?, ?)',
+                        (game[0], game[3], game[1], game[2], *game[6:]))
 
+            lastrowid = cur.lastrowid
 
-def search_game(name=None, genre=None, gtype=None, path=PATH):
-    """
-    Поиск игр по названию, типу или жанру, если параметры не переданы, выводит все игры.
+            cur.executemany('INSERT INTO genre4version VALUES(?, ?)',
+                            [(lastrowid, genre) for genre in game[4]])
+            cur.executemany('INSERT INTO type4version VALUES(?, ?)',
+                            [(lastrowid, genre) for genre in game[5]])
 
-    :param name: Название игры.
-    :param genre: Жанры игры.
-    :param gtype: Типы игры.
-    :param path: Путь к БД.
-    :return:
-    """
+            conn.commit()
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        return lastrowid
+
+    def check_game(self, name):
+        """
+        Проверяет есть ли игра в БД.
+
+        :param name:
+        :return:
+        """
+
+        self.cur.execute('SELECT * FROM games WHERE name = ?', (name,))
+        return self.cur.fetchall()
+
+    def search_game(self, name=None, genre=None, gtype=None):
+        """
+        Поиск игр по названию, типу или жанру, если параметры не переданы, выводит все игры.
+
+        :param name: Название игры.
+        :param genre: Жанры игры.
+        :param gtype: Типы игры.
+        :return: name, id, user_id, img_url, version, genre, type, sys_requirements, description, downloads, score
+        """
 
         if name is not None:
-            cur.execute(f'SELECT * FROM games WHERE name LIKE "%{name}%";')
-            res = cur.fetchall()
+            self.cur.execute(f'''
+                SELECT name, id, user_id, img_url, max(version),  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description, downloads, score 
+                FROM games, versions 
+                WHERE name LIKE "%{name}%" AND game_name = name GROUP BY name;
+            ''')
+            res = self.cur.fetchall()
 
         elif genre is not None:
-            res = set()
-            for i in genre:
-                cur.execute(f'SELECT * FROM games WHERE genre LIKE "%{i}%";')
-                for j in cur.fetchall():
-                    res.add(j)
+            genre_str = ', '.join(genre)
+            self.cur.execute('''
+                SELECT name, id, user_id, img_url, max(version),  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description, downloads, score 
+                FROM games, (SELECT *
+                    FROM genre4version, versions
+                    WHERE id = version_id
+                    AND (genre IN (?))
+                    GROUP BY id
+                    HAVING COUNT(id) = ?)
+                WHERE name = game_name
+                GROUP BY game_name;
+            ''', (genre_str, len(genre)))
+            res = self.cur.fetchall()
 
         elif gtype is not None:
-            res = set()
-            for i in gtype:
-                cur.execute(f'SELECT * FROM games WHERE type LIKE "%{i}%";')
-                for j in cur.fetchall():
-                    res.add(j)
+            gtype_str = ', '.join(gtype)
+            self.cur.execute('''
+                SELECT name, id, user_id, img_url, max(version),  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description, downloads, score 
+                FROM games, (SELECT *
+                    FROM type4version, versions
+                    WHERE id = version_id
+                    AND (type IN (?))
+                    GROUP BY id
+                    HAVING COUNT(id) = ?)
+                WHERE name = game_name
+                GROUP BY game_name;
+            ''', (gtype_str, len(gtype)))
+            res = self.cur.fetchall()
 
         else:
-            cur.execute('SELECT * FROM games;')
-            res = cur.fetchall()
+            self.cur.execute('''
+                SELECT name, id, user_id, img_url, version,  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description, downloads, score 
+                FROM games, versions;
+            ''')
+            res = self.cur.fetchall()
 
-        return list(res)
+        return res
 
+    def get_versions(self, game):
+        self.cur.execute('''
+                SELECT game_name, id, user_id, img_url, version,  
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description
+                FROM versions
+                WHERE game_name = ?
+                ''', (game,)
+                         )
+        return self.cur.fetchall()
 
-def add_reaction(name, user_id, react, path=PATH):
-    """
-    Добавление отзыва к игре.
+    def get_comments(self, game):
+        self.cur.execute('SELECT user_id, score, message FROM comments WHERE game_name = ?', (game,))
+        return self.cur.fetchall()
 
-    :param name: Название игры.
-    :param user_id: ID пользователя.
-    :param react: Отзыв.
-    :param path: Путь к БД.
-    :return:
-    """
+    def new_download(self, game_n, user_id):
+        """
+        Обновляет данные о количестве загрузок игры и пользователя.
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        :param game_n: Название игры.
+        :param user_id: ID пользователя.
+        :return:
+        """
 
-        cur.execute(f'SELECT user_voted FROM games WHERE name = ?;', (name,))
-        res = cur.fetchall()
+        self.cur.execute(
+            'INSERT INTO users VALUES(?, 0, 1, 0) ON CONFLICT (id) DO UPDATE SET downloads = downloads + 1',
+            (user_id,)
+        )
 
-        if not res:
-            return
+        self.cur.execute('UPDATE games SET downloads = downloads + 1 WHERE name = ?;', (game_n,))
 
-        users = json.loads(res[0][0])
+        self.conn.commit()
 
-        if str(user_id) not in users:
-            cur.execute('SELECT num_votes FROM users WHERE user_id = ?;', (user_id,))
-            res = cur.fetchall()
-            if len(res) == 0:
-                cur.execute('INSERT INTO users VALUES(?, ?, ?, ?);', (user_id, 0, 0, 1))
-            else:
-                cur.execute('UPDATE users SET num_votes = ? WHERE user_id = ?;', (res[0][0] + 1, user_id))
+    def add_reaction(self, name, user_id, react):
+        """
+        Добавление отзыва к игре.
 
-        users[str(user_id)] = react
+        :param name: Название игры.
+        :param user_id: ID пользователя.
+        :param react: Отзыв (score, message).
+        :return:
+        """
 
-        cur.execute('UPDATE games SET user_voted = ? WHERE name = ?;',
-                    (json.dumps(users), name))
+        self.cur.execute('INSERT INTO users VALUES(?, 0, 0, 0) ON CONFLICT (id) DO NOTHING', (user_id,))
 
-        conn.commit()
+        try:
+            self.cur.execute(
+                'INSERT INTO comments VALUES(?, ?, ?, ?)',
+                (user_id, name, *react)
+            )
+            self.cur.execute('UPDATE users SET votes = votes + 1 WHERE id = ?', (user_id,))
 
+        except sqlite3.Error:
+            self.cur.execute(
+                'UPDATE comments SET score = ?, message = ? WHERE user_id = ? AND game_name=?',
+                (*react, user_id, name)
+            )
 
-def new_download(game_n, user_id, path=PATH):
-    """
-    Обновляет данные о количестве загрузок игры и пользователя.
+        self.conn.commit()
+        self._update_game_score(name)
 
-    :param game_n: Название игры.
-    :param user_id: ID пользователя.
-    :param path: Путь к БД.
-    :return:
-    """
+    def _update_game_score(self, game):
+        """
+        Пересчёт рейтинга игры по отзывам.
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
+        :param game:
+        :return:
+        """
+        self.cur.execute('''
+            UPDATE games
+            SET score = (SELECT avg(score) FROM comments WHERE game_name = name)
+            WHERE name = ?;
+        ''', (game,))
 
-        cur.execute('SELECT num_downloads FROM users WHERE user_id = ?;', (user_id,))
-        res = cur.fetchall()
-        if len(res) == 0:
-            cur.execute('INSERT INTO users VALUES(?, ?, ?, ?);', (user_id, 0, 1, 0))
-        else:
-            cur.execute('UPDATE users SET num_downloads = ? WHERE user_id = ?;', (res[0][0] + 1, user_id))
+        self.conn.commit()
 
-        cur.execute('SELECT num_downloads FROM games WHERE name = ?;', (game_n,))
-        res = cur.fetchall()
-        cur.execute('UPDATE games SET num_downloads = ? WHERE name = ?;', (res[0][0] + 1, game_n))
+    def top_games(self):
+        """
+        Возвращает все игры, отсортированные в порядке убывания скачиваний и комментариев.
 
-        conn.commit()
+        :return:
+        """
 
+        self.cur.execute('''
+            SELECT name, downloads, score 
+            FROM games
+            ORDER BY score + downloads + score * downloads DESC;
+        ''')
+        return self.cur.fetchall()
 
-def top_games(path=PATH):
-    """
-    Возвращает все игры, отсортированные в порядке убывания скачиваний и комментариев.
+    def top_users(self):
+        """
+        Возвращает всех пользователей в порядке убывания активности с ботом.
 
-    :param path: Путь к БД.
-    :return:
-    """
+        :return:
+        """
 
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute('SELECT name, num_downloads, user_voted FROM games;')
-        games = []
-        for name, down, votes in cur.fetchall():
-            votes = json.loads(votes)
-            sc = 0
-
-            for vote in votes:
-                sc += int(votes[vote][0])
-
-            score = sc / len(votes) if votes else 0
-
-            games.append((score, down, name))
-        return sorted(games, reverse=True)[:5]
-
-
-def top_users(path=PATH):
-    """
-    Возвращает всех пользователей в порядке убывания активности с ботом.
-
-    :param path: Путь к БД.
-    :return:
-    """
-
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        cur.execute('SELECT * FROM users;')
-        res = cur.fetchall()
-
-        return sorted(res, reverse=True, key=key4users)[:5]
-
-
-def key4users(a):
-    return a[1] * 3 + a[2] + a[3] * 2
-
-
-def test(path='../media/game.db'):
-    with sqlite3.connect(path) as conn:
-        cur = conn.cursor()
-
-        print('_______________________')
-
-        print('users')
-        cur.execute('SELECT * FROM users;')
-        print(*cur.fetchall(), sep='\n', end='\n_______________________\n')
-
-        print('games')
-        cur.execute('SELECT * FROM games;')
-        print(*cur.fetchall(), sep='\n', end='\n_______________________\n')
-
-        print('guilds')
-        cur.execute('SELECT * FROM guilds;')
-        print(*cur.fetchall(), sep='\n')
+        self.cur.execute('''
+            SELECT * 
+            FROM users
+            ORDER BY added * 5 + votes * 3 + downloads DESC;
+        ''')
+        return self.cur.fetchall()
 
 
 if __name__ == '__main__':
-    test()
+    db = DB('../media/game.db')
+
+    # db.add_reaction('Homeworld Remastered Collection', 11, (5, ''))
+
+    # print(*db.get_tags(), sep='\n')
+    # r = db.search_game(gtype=['одиночная игра'])
+    # print(*r, sep='\n')
+
+    # db.create_db()
+    # db.new_game(
+    #     ('ping pong', 2, 'url21', 'v1.0', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
+    # )
+    # db.new_game(
+    #     ('ping pong', 2, 'url31', 'v1.9', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
+    # )
+    # db.new_game(
+    #     ('ping pong', 2, 'url51', 'v0.5', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
+    # )
+    # db.new_game(
+    #     ('tetris', 1, 'url01', 'v3.5', ['аркада'], ['одиночная игра'], '', '')
+    # )
+    # db.new_game(
+    #     ('tetris', 1, 'url23', 'v1.5', ['аркада'], ['одиночная игра'], '', '')
+    # )
+    # db.new_game(
+    #     ('tetris', 1, 'url221', 'v6.5', ['аркада'], ['одиночная игра'], '', '')
+    # )

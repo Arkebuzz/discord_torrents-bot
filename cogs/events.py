@@ -2,7 +2,7 @@ import disnake
 from disnake.ext import commands
 
 from config import IDS
-from utils.db import guild_remove
+from utils.db import DB
 from utils.logger import logger
 
 
@@ -20,7 +20,7 @@ async def refresh(bot):
 
     if IDS != guilds:
         for guild in set(IDS) - set(guilds):
-            guild_remove(guild)
+            DB().guild_remove(guild)
             logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {guild.id}')
 
         for guild in set(guilds) - set(IDS):

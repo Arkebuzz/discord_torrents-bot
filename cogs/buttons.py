@@ -3,6 +3,29 @@ from typing import Optional
 import disnake
 
 
+class Confirm(disnake.ui.View):
+    """
+    Класс добавляет к сообщению 2 кнопки: продолжить и отменить.
+    """
+
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.res: Optional[str] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
+
+    @disnake.ui.button(label='Перейти к поиску', style=disnake.ButtonStyle.green)
+    async def confirm(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'search'
+        self.inter = inter
+        self.stop()
+
+    @disnake.ui.button(label='Добавить игру', style=disnake.ButtonStyle.green)
+    async def cancel(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'new_game'
+        self.inter = inter
+        self.stop()
+
+
 class Flipping(disnake.ui.View):
     """
     Класс добавляет к сообщению 2 кнопки: вперёд и назад.
@@ -15,7 +38,7 @@ class Flipping(disnake.ui.View):
     def __init__(self, mx, current=0):
         super().__init__(timeout=300)
         self.current = current
-        self.value = None
+        self.value: Optional[int] = None
         self.mx = mx - 1
 
     def stop(self):
@@ -61,26 +84,26 @@ class GameList(Flipping):
 
     @disnake.ui.button(label='Оценить', style=disnake.ButtonStyle.green)
     async def vote(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'v'
+        self.res = 'vote'
         self.inter = inter
         self.stop()
 
     @disnake.ui.button(label='Комментарии', style=disnake.ButtonStyle.green)
     async def comments(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'c'
+        self.res = 'comments'
         self.inter = inter
         self.stop()
 
     @disnake.ui.button(label='Скачать', style=disnake.ButtonStyle.green)
     async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        self.res = 'd'
+        self.res = 'download'
         self.inter = inter
         self.stop()
 
 
-class CommentsList(Flipping):
+class FlippingBack(Flipping):
     """
-    Класс добавляет к сообщению 5 кнопки: вперёд, назад, оценить, комментарии, скачать.
+    Класс добавляет к сообщению 3 кнопки: вперёд, назад и вернуться к поиску.
 
     :param mx: Количество страниц.
     :param value: Стартовая страница.
@@ -94,6 +117,25 @@ class CommentsList(Flipping):
 
     @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
     async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
-        await inter.response.defer()
         self.res = 'r'
+        await inter.response.defer()
+        self.stop()
+
+
+class Back(disnake.ui.View):
+    """
+    Класс добавляет к сообщению 1 кнопку - вернуться к поиску.
+
+    :attribute res: Выбор пользователя.
+    """
+
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.res: Optional[str] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
+
+    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'r'
+        await inter.response.defer()
         self.stop()
