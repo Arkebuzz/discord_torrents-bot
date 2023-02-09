@@ -41,7 +41,7 @@ class SelectGameGenre(disnake.ui.View):
     @disnake.ui.string_select(placeholder='Выберите жанры игры ...',
                               min_values=0,
                               max_values=9,
-                              options=[disnake.SelectOption(label=lab) for lab in GENRE_OPTIONS])
+                              options=[disnake.SelectOption(label=lab[0]) for lab in GENRE_OPTIONS])
     async def select(self, string_select: disnake.ui.StringSelect, inter: disnake.ApplicationCommandInteraction):
         self.value = string_select.values
         self.stop()

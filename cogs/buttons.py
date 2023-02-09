@@ -103,7 +103,7 @@ class GameList(Flipping):
 
 class FlippingBack(Flipping):
     """
-    Класс добавляет к сообщению 5 кнопки: вперёд, назад и вернуться к поиску.
+    Класс добавляет к сообщению 3 кнопки: вперёд, назад и вернуться к поиску.
 
     :param mx: Количество страниц.
     :param value: Стартовая страница.
@@ -114,6 +114,25 @@ class FlippingBack(Flipping):
     def __init__(self, mx, value=0):
         super().__init__(mx, value)
         self.res: Optional[str] = None
+
+    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
+        self.res = 'r'
+        await inter.response.defer()
+        self.stop()
+
+
+class Back(disnake.ui.View):
+    """
+    Класс добавляет к сообщению 1 кнопку - вернуться к поиску.
+
+    :attribute res: Выбор пользователя.
+    """
+
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.res: Optional[str] = None
+        self.inter: Optional[disnake.ApplicationCommandInteraction] = None
 
     @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
     async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):

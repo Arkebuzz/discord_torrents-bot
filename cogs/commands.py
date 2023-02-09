@@ -1,12 +1,11 @@
 import random
 import os
 
-import disnake
 from disnake.ext import commands
 
 from cogs.modals import GameModal, VoteModal
 from cogs.select_menu import SelectGameType, SelectGameGenre
-from cogs.buttons import GameList, FlippingBack, Confirm
+from cogs.buttons import *
 from utils.db import DB
 from utils.logger import logger
 from utils.search_game_info import search_requirements, search_images
@@ -19,7 +18,7 @@ class OtherCommand(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='settings',
+        name='set_main_channel',
         description='Выбрать основной канал для бота.'
     )
     async def settings(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
@@ -54,11 +53,12 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='beta v0.9.1')
+        emb.add_field(name='Версия:', value='beta v0.9.3')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv0.9.1\n'
+                      value='```diff\nv0.9.3\n'
                             '+Реализована возможность добавления нескольких версий игр.\n'
+                            '+Добавлены новые жанры и типы игр.\n'
                             '~Переработана БД бота.\n'
                             '~Проведены оптимизация кода и исправление ошибок.'
                             '```', inline=False)
@@ -146,7 +146,7 @@ class GameNewCommand(commands.Cog):
 
             emb = disnake.Embed(
                 title='Данная игра уже есть в БД!',
-                description='Найдите эту игру, нажав "Перейти к поиску", или нажмите кнопку "Добавить игру",'
+                description='Найдите эту игру, нажав "Перейти к поиску", или нажмите кнопку "Добавить игру", '
                             'чтобы добавить новую версию этой игры.',
                 color=disnake.Colour.red()
             )
@@ -159,6 +159,7 @@ class GameNewCommand(commands.Cog):
 
             if f == 'search':
                 logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : starting search')
+                await inter.response.defer()
                 await GameSearchCommand(self.bot).main_search(inter, name, None, None)
                 return
 
@@ -198,7 +199,8 @@ class GameNewCommand(commands.Cog):
             logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game type not selected, time is up')
             return
 
-        type_g = ', '.join(view.value)
+        type_str = ', '.join(view.value)
+        gtype = view.value
 
         view = SelectGameGenre()
         await inter.edit_original_response(view=view)
@@ -208,19 +210,19 @@ class GameNewCommand(commands.Cog):
             logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game genre not selected, time is up')
             return
 
-        genre_g = ', '.join(view.value)
+        genre_str = ', '.join(view.value)
+        genre = view.value
 
         await inter.edit_original_response('Игра в процессе добавления, ожидайте ...', view=None)
 
         emb = disnake.Embed(title='Добавлена новая игра!', color=disnake.Colour.blue())
         emb.add_field(name='Название:', value=name)
         emb.add_field(name='Версия:', value=version)
-        emb.add_field(name='Тип игры:', value=type_g, inline=False)
-        emb.add_field(name='Жанр игры:', value=genre_g, inline=False)
+        emb.add_field(name='Тип игры:', value=type_str, inline=False)
+        emb.add_field(name='Жанр игры:', value=genre_str, inline=False)
         emb.add_field(name='Системные требования:', value=req, inline=False)
         emb.add_field(name='Описание:', value=des, inline=False)
         emb.add_field(name='Автор добавления:', value=inter.author.mention, inline=False)
-        emb.set_footer(text='Оцените игру при помощи кнопки под этим сообщением.')
 
         file = await search_images(name, inter.author.id)
 
@@ -241,7 +243,7 @@ class GameNewCommand(commands.Cog):
 
             url = ''
 
-        path = db.new_game((name, inter.author.id, url, version, genre_g, type_g, req, des))
+        path = db.new_game((name, inter.author.id, url, version, genre, gtype, req, des))
 
         os.makedirs(f'media/torrents/{path}')
 
@@ -252,7 +254,7 @@ class GameNewCommand(commands.Cog):
 
         await inter.delete_original_response()
 
-        logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game is added {name}, {genre_g}, {type_g}')
+        logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game is added {name}, {genre_str}, {type_str}')
 
 
 class GameSearchCommand(commands.Cog):
@@ -281,7 +283,7 @@ class GameSearchCommand(commands.Cog):
             emb = disnake.Embed(title=games[i][0], color=disnake.Colour.blue())
             emb.add_field(name='Версия:', value=games[i][4])
             emb.add_field(name='Количество скачиваний:', value=games[i][9])
-            emb.add_field(name='Оценка:', value=games[i][10][:4])
+            emb.add_field(name='Оценка:', value=round(games[i][10], 2))
             emb.add_field(name='Тип игры:', value=games[i][6], inline=False)
             emb.add_field(name='Жанр игры:', value=games[i][5], inline=False)
             emb.add_field(name='Системные требования:', value=games[i][7], inline=False)
@@ -301,6 +303,7 @@ class GameSearchCommand(commands.Cog):
 
                 if f == 'download':
                     await temp_inter.response.defer()
+                    await temp_inter.edit_original_response('Загрузка ...', embed=None, view=None)
                     logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} CALL download')
 
                     vers = db.get_versions(games[i][0])
@@ -309,56 +312,50 @@ class GameSearchCommand(commands.Cog):
                     res = None
                     while j is not None and res is None:
                         emb = disnake.Embed(title=f'Скачать {games[i][0]}', color=disnake.Colour.blue())
-                        emb.add_field(name='Версия:', value=vers[i][4])
-                        emb.add_field(name='Тип игры:', value=vers[i][6], inline=False)
-                        emb.add_field(name='Жанр игры:', value=vers[i][5], inline=False)
-                        emb.add_field(name='Описание:', value=vers[i][8], inline=False)
-                        emb.add_field(name='Автор добавления:', value='<@' + str(vers[i][2]) + '>', inline=False)
-                        emb.set_footer(text=f'Страница {j + 1}/{len(vers)}')
+                        emb.add_field(name='Версия:', value=vers[j][4])
+                        emb.add_field(name='Тип игры:', value=vers[j][6], inline=False)
+                        emb.add_field(name='Жанр игры:', value=vers[j][5], inline=False)
+                        emb.add_field(name='Описание:', value=vers[j][8], inline=False)
+                        emb.add_field(name='Автор добавления:', value='<@' + str(vers[j][2]) + '>', inline=False)
+                        emb.set_footer(
+                            text=f'Страница {j + 1}/{len(vers)}\n'
+                                 f'Не нужно много раз нажимать на кнопки листания страниц, будьте терпеливы.'
+                        )
 
                         fls = []
-                        for f in os.listdir(f'media/torrents/{vers[i][1]}/'):
-                            fls.append(disnake.File(f'media/torrents/{vers[i][1]}/' + f))
+                        for f in os.listdir(f'media/torrents/{vers[j][1]}/'):
+                            fls.append(disnake.File(f'media/torrents/{vers[j][1]}/' + f))
 
                         view = FlippingBack(len(vers), j)
-                        await temp_inter.edit_original_response(embed=emb, view=view, files=fls)
+                        await temp_inter.edit_original_response(content=None, embed=emb, view=view, files=fls)
                         await view.wait()
                         j = view.value
                         res = view.res
 
                     logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} FINISHED download')
-                    continue
+                    await temp_inter.edit_original_response(embed=emb, view=view, attachments=None)
 
-                    # await temp_inter.response.send_message('Загрузка ...', ephemeral=True)
-                    #
-                    # vers = []
-                    # for ver in os.listdir(f'media/torrents/{games[i][3]}'):
-                    #     if 'img.' not in ver:
-                    #         vers.append(f'media/torrents/{games[i][3]}/' + ver + '/')
-                    #
-                    # j = 0
-                    # res = None
-                    # while j is not None and res is None:
-                    #     emb = disnake.Embed(title=f'{games[i][0]}', color=disnake.Colour.blue())
-                    #     emb.set_footer(text=f'Страница {j + 1}/{len(vers)}')
-                    #
-                    #     fls = []
-                    #     for file in os.listdir(vers[j]):
-                    #         fls.append(disnake.File(vers[j] + file))
-                    #
-                    #     view = FlippingBack(len(vers), j)
-                    #     await temp_inter.edit_original_response(embed=emb, view=view, files=fls)
-                    #     await view.wait()
-                    #     j = view.value
-                    #     res = view.res
-                    #
-                    # logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} is downloaded')
+                    continue
 
                 elif f == 'comments':
                     await temp_inter.response.defer()
                     logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search : game {games[i][0]} CALL comments')
 
                     comments = db.get_comments(games[i][0])
+
+                    if not comments:
+                        view = Back()
+                        await temp_inter.edit_original_response('У этой игры нет комментариев.', embed=None, view=view)
+                        await view.wait()
+                        res = view.res
+
+                        if res is not None:
+                            continue
+                        else:
+                            await temp_inter.delete_original_response()
+                            logger.warning(f'[FINISHED] <@{inter.author.id}> /search : time`s up')
+                            return
+
                     com = [[f'<@{comment[0]}> Оценка: {comment[1]}\n' + comment[2] for comment in comments[ind:ind + 5]]
                            for ind in range(0, len(comments), 5)]
 

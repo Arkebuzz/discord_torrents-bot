@@ -166,8 +166,8 @@ class DB:
         if name is not None:
             self.cur.execute(f'''
                 SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
                 FROM games, versions 
                 WHERE name LIKE "%{name}%" AND game_name = name GROUP BY name;
@@ -178,8 +178,8 @@ class DB:
             genre_str = ', '.join(genre)
             self.cur.execute('''
                 SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
                 FROM games, (SELECT *
                     FROM genre4version, versions
@@ -196,8 +196,8 @@ class DB:
             gtype_str = ', '.join(gtype)
             self.cur.execute('''
                 SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
                 FROM games, (SELECT *
                     FROM type4version, versions
@@ -213,20 +213,20 @@ class DB:
         else:
             self.cur.execute('''
                 SELECT name, id, user_id, img_url, version,  
-                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
                 FROM games, versions;
             ''')
             res = self.cur.fetchall()
 
-        return list(res)
+        return res
 
     def get_versions(self, game):
         self.cur.execute('''
                 SELECT game_name, id, user_id, img_url, version,  
-                (SELECT ALL group_concat(genre) FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type) FROM type4version WHERE version_id = id),
+                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description
                 FROM versions
                 WHERE game_name = ?
@@ -266,15 +266,15 @@ class DB:
         :return:
         """
 
+        self.cur.execute('INSERT INTO users VALUES(?, 0, 0, 0) ON CONFLICT (id) DO NOTHING', (user_id,))
+
         try:
             self.cur.execute(
-                'INSERT OR ABORT INTO comments VALUES(?, ?, ?, ?)',
-                (user_id, name, *react, *react)
+                'INSERT INTO comments VALUES(?, ?, ?, ?)',
+                (user_id, name, *react)
             )
-            self.cur.execute(
-                'INSERT INTO users VALUES(?, 0, 0, 1) ON CONFLICT (id) DO UPDATE SET votes = votes + 1',
-                (user_id,)
-            )
+            self.cur.execute('UPDATE users SET votes = votes + 1 WHERE id = ?', (user_id,))
+
         except sqlite3.Error:
             self.cur.execute(
                 'UPDATE comments SET score = ?, message = ? WHERE user_id = ? AND game_name=?',
@@ -329,7 +329,9 @@ class DB:
 
 
 if __name__ == '__main__':
-    db = DB('db.db')
+    db = DB('../media/game.db')
+
+    # db.add_reaction('Homeworld Remastered Collection', 11, (5, ''))
 
     # print(*db.get_tags(), sep='\n')
     # r = db.search_game(gtype=['одиночная игра'])
