@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 from config import PATH_DB as PATH
 
@@ -154,7 +153,7 @@ class DB:
         self.cur.execute('SELECT * FROM games WHERE name = ?', (name,))
         return self.cur.fetchall()
 
-    def search_game(self, name=None, genre=None, gtype=None):
+    def search_games(self, name=None, genre=None, gtype=None):
         """
         Поиск игр по названию, типу или жанру, если параметры не переданы, выводит все игры.
 
@@ -164,38 +163,52 @@ class DB:
         :return: name, id, user_id, img_url, version, genre, type, sys_requirements, description, downloads, score
         """
 
-        if name is not None:
-            self.cur.execute(f'''
-                SELECT name, id, user_id, img_url, max(version),  
+        if name is None and genre is None and gtype is None:
+            self.cur.execute('''
+                SELECT game_name, id, user_id, img_url, version,  
                 (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
                 (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
-                FROM games, versions 
-                WHERE name LIKE "%{name}%" AND game_name = name GROUP BY name;
+                FROM games, versions
+                WHERE game_name = name 
+                GROUP BY id;
             ''')
-            res = self.cur.fetchall()
+            return self.cur.fetchall()
 
-        elif genre is not None:
-            genre_str = ', '.join(genre)
-            self.cur.execute('''
+        if name is not None:
+            self.cur.execute(f'''
                 SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                (SELECT group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                sys_requirements, description, downloads, score 
+                FROM games, versions 
+                WHERE name LIKE "%{name}%" AND game_name = name 
+                GROUP BY name;
+            ''')
+            return self.cur.fetchall()
+
+        res = set()
+        if genre is not None:
+            genre_str = '", "'.join(genre)
+            self.cur.execute(f'''
+                SELECT name, id, user_id, img_url, max(version),  
+                (SELECT group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
+                (SELECT group_concat(type, ", ") FROM type4version WHERE version_id = id),
                 sys_requirements, description, downloads, score 
                 FROM games, (SELECT *
                     FROM genre4version, versions
                     WHERE id = version_id
-                    AND (genre IN (?))
+                    AND (genre IN ("{genre_str}"))
                     GROUP BY id
                     HAVING COUNT(id) = ?)
                 WHERE name = game_name
                 GROUP BY game_name;
-            ''', (genre_str, len(genre)))
-            res = self.cur.fetchall()
+            ''', (len(genre),))
+            res.update(self.cur.fetchall())
 
-        elif gtype is not None:
-            gtype_str = ', '.join(gtype)
-            self.cur.execute('''
+        if gtype is not None:
+            gtype_str = '", "'.join(gtype)
+            self.cur.execute(f'''
                 SELECT name, id, user_id, img_url, max(version),  
                 (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
                 (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
@@ -203,29 +216,19 @@ class DB:
                 FROM games, (SELECT *
                     FROM type4version, versions
                     WHERE id = version_id
-                    AND (type IN (?))
+                    AND (type IN ("{gtype_str}"))
                     GROUP BY id
                     HAVING COUNT(id) = ?)
                 WHERE name = game_name
                 GROUP BY game_name;
-            ''', (gtype_str, len(gtype)))
-            res = self.cur.fetchall()
+            ''', (len(gtype),))
+            res = res.intersection(set(self.cur.fetchall()))
 
-        else:
-            self.cur.execute('''
-                SELECT name, id, user_id, img_url, version,  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
-                sys_requirements, description, downloads, score 
-                FROM games, versions;
-            ''')
-            res = self.cur.fetchall()
+        return list(res)
 
-        return res
-
-    def get_version_simpl(self, name=None, version=None, user=None):
+    def get_version2delete(self, name=None, version=None, user=None):
         """
-        Краткий поиск версий в БД. Должен быть передан только1 параметр!
+        Краткий поиск версий в БД. Должен быть передан только 1 параметр!
 
         :param name:
         :param version:
@@ -378,3 +381,7 @@ class DB:
             ORDER BY added * 5 + votes * 3 + downloads DESC;
         ''')
         return self.cur.fetchall()
+
+
+db = DB('../media/game.db')
+print(*db.search_games(genre=['платформер'], gtype=['Steam']), sep='\n')

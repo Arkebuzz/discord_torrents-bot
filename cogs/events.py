@@ -21,7 +21,7 @@ async def refresh(bot):
     if IDS != guilds:
         for guild in set(IDS) - set(guilds):
             DB().delete_guild(guild)
-            logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {guild.id}')
+            logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {id}')
 
         for guild in set(guilds) - set(IDS):
             g = bot.get_guild(guild)

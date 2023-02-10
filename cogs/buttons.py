@@ -38,7 +38,7 @@ class Back(disnake.ui.View):
         self.res: Optional[str] = None
         self.inter: Optional[disnake.ApplicationCommandInteraction] = None
 
-    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='⏫', style=disnake.ButtonStyle.green)
     async def back(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'r'
         await inter.response.defer()
@@ -64,7 +64,7 @@ class Flipping(disnake.ui.View):
         self.value = self.current if self.value is None else self.value
         super().stop()
 
-    @disnake.ui.button(label='Назад', style=disnake.ButtonStyle.grey)
+    @disnake.ui.button(label='⬅️', style=disnake.ButtonStyle.grey)
     async def left(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         if self.current < 1:
             self.value = self.mx
@@ -74,7 +74,7 @@ class Flipping(disnake.ui.View):
         await inter.response.defer()
         self.stop()
 
-    @disnake.ui.button(label='Вперёд', style=disnake.ButtonStyle.grey)
+    @disnake.ui.button(label='➡️', style=disnake.ButtonStyle.grey)
     async def right(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         if self.current >= self.mx:
             self.value = 0
@@ -101,19 +101,19 @@ class GameList(Flipping):
         self.res: Optional[str] = None
         self.inter: Optional[disnake.ApplicationCommandInteraction] = None
 
-    @disnake.ui.button(label='Оценить', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='🔢', style=disnake.ButtonStyle.green)
     async def vote(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'vote'
         self.inter = inter
         self.stop()
 
-    @disnake.ui.button(label='Комментарии', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='📊', style=disnake.ButtonStyle.green)
     async def comments(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'comments'
         self.inter = inter
         self.stop()
 
-    @disnake.ui.button(label='Смотреть версии', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='⏬', style=disnake.ButtonStyle.green)
     async def versions(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'versions'
         self.inter = inter
@@ -134,7 +134,7 @@ class FlippingBack(Flipping):
         super().__init__(mx, value)
         self.res: Optional[str] = None
 
-    @disnake.ui.button(label='Вернуться к поиску', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='⏫', style=disnake.ButtonStyle.green)
     async def back(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'back'
         await inter.response.defer()
@@ -154,7 +154,7 @@ class FlippingBackDownload(FlippingBack):
     def __init__(self, mx, value=0):
         super().__init__(mx, value)
 
-    @disnake.ui.button(label='Скачать', style=disnake.ButtonStyle.green)
+    @disnake.ui.button(label='⏬', style=disnake.ButtonStyle.green)
     async def download(self, button: disnake.ui.Button, inter: disnake.ApplicationCommandInteraction):
         self.res = 'download'
         await inter.response.defer()

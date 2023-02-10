@@ -65,15 +65,15 @@ class OtherCommand(commands.Cog):
 
     @delete_game.autocomplete('name')
     async def autocomplete(self, _, string: str):
-        return [name[0] for name in db.get_version_simpl(name=string)]
+        return [name[0] for name in db.get_version2delete(name=string)]
 
     @delete_game.autocomplete('version')
     async def autocomplete(self, _, string: str):
-        return [name[1] for name in db.get_version_simpl(version=string)]
+        return [name[1] for name in db.get_version2delete(version=string)]
 
     @delete_game.autocomplete('user_id')
     async def autocomplete(self, _, string: str):
-        return [str(name[2]) for name in db.get_version_simpl(user=string)]
+        return [str(name[2]) for name in db.get_version2delete(user=string)]
 
     @commands.slash_command(
         name='info',
@@ -91,12 +91,13 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='release v1.0')
+        emb.add_field(name='Версия:', value='release v1.1')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
-                      value='```diff\nv1.0\n'
+                      value='```diff\nv1\n'
                             '+Оптимизирован просмотр версий игр.\n'
                             '+Добавлена возможность удалять игры.\n'
+                            '~Изменён поиск по жанровой принадлежности.\n'
                             '~Проведены оптимизация кода и исправление ошибок.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717\nhttps://github.com/Arkebuzz/ds_bot',
@@ -303,7 +304,7 @@ class GameSearchCommand(commands.Cog):
 
     @staticmethod
     async def main_search(inter, name, gtype, genre):
-        games = db.search_game(name, genre, gtype)
+        games = db.search_games(name, genre, gtype)
         ln = len(games)
 
         if not ln:
@@ -452,7 +453,7 @@ class GameSearchCommand(commands.Cog):
                         await temp_inter.edit_original_response('Ваш отзыв добавлен!', )
                         logger.info(f'[NEW REACT] <@{inter.author.id}> game: {games[i][0]}; score: {score}')
 
-                        games = db.search_game(name, genre, gtype)
+                        games = db.search_games(name, genre, gtype)
                         ln = len(games)
                     else:
                         await temp_inter.edit_original_response(
@@ -469,45 +470,37 @@ class GameSearchCommand(commands.Cog):
         name='search_game4type',
         description='Ищет игру по жанровой принадлежности.'
     )
-    async def search_type(self, inter: disnake.ApplicationCommandInteraction,
-                          stype: str = commands.Param(choices=['Поиск по жанру', 'Поиск по типу']), ):
+    async def search_type(self, inter: disnake.ApplicationCommandInteraction):
         """
         Поиск игр по жанровой принадлежности.
 
         :param inter:
-        :param stype:
         :return:
         """
 
-        logger.info(f'[CALL] <@{inter.author.id}> /search_type stype: {stype}')
+        logger.info(f'[CALL] <@{inter.author.id}> /search_type')
 
         await inter.response.defer(ephemeral=True)
 
-        if stype == 'Поиск по жанру':
-            view = SelectGameGenre()
-            await inter.edit_original_response(view=view)
-            await view.wait()
-            genre = view.value
+        name = None
 
-            if genre is None:
-                await inter.delete_original_response()
-                return
+        view = SelectGameType()
+        await inter.edit_original_response(view=view)
+        await view.wait()
+        gtype = view.value
 
-            gtype = None
-            name = None
+        if gtype is None:
+            await inter.delete_original_response()
+            return
 
-        else:
-            view = SelectGameType()
-            await inter.edit_original_response(view=view)
-            await view.wait()
-            gtype = view.value
+        view = SelectGameGenre()
+        await inter.edit_original_response(view=view)
+        await view.wait()
+        genre = view.value
 
-            if gtype is None:
-                await inter.delete_original_response()
-                return
-
-            genre = None
-            name = None
+        if genre is None:
+            await inter.delete_original_response()
+            return
 
         logger.info(f'[IN PROGRESS] <@{inter.author.id}> /search_type starting main_search')
 
@@ -537,7 +530,7 @@ class GameSearchCommand(commands.Cog):
 
     @search_name.autocomplete('name')
     async def autocomplete(self, _, string: str):
-        return [name[0] for name in db.search_game(string)]
+        return [name[0] for name in db.search_games(string)]
 
 
 class Statistic(commands.Cog):
