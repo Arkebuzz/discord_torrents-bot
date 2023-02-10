@@ -381,7 +381,3 @@ class DB:
             ORDER BY added * 5 + votes * 3 + downloads DESC;
         ''')
         return self.cur.fetchall()
-
-
-db = DB('../media/game.db')
-print(*db.search_games(genre=['платформер'], gtype=['Steam']), sep='\n')
