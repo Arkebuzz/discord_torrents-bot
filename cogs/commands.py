@@ -7,7 +7,7 @@ from disnake.ext import commands
 from cogs.modals import GameModal, VoteModal
 from cogs.select_menu import SelectGameType, SelectGameGenre
 from cogs.buttons import *
-from config import ADMINS
+from config import ADMINS, GENRE_OPTIONS, TYPE_OPTIONS
 from utils.db import DB
 from utils.logger import logger
 from utils.search_game_info import search_requirements, search_images
@@ -91,7 +91,7 @@ class OtherCommand(commands.Cog):
         emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
                           r'-icon-png-circle.png')
         emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='release v1.1')
+        emb.add_field(name='Версия:', value='release v1.2')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
                       value='```diff\nv1\n'
@@ -238,8 +238,8 @@ class GameNewCommand(commands.Cog):
             logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game type not selected, time is up')
             return
 
-        type_str = ', '.join(view.value)
         gtype = view.value
+        type_str = ', '.join([TYPE_OPTIONS[ind - 100][0] for ind in view.value])
 
         view = SelectGameGenre()
         await inter.edit_original_response(view=view)
@@ -249,8 +249,8 @@ class GameNewCommand(commands.Cog):
             logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game genre not selected, time is up')
             return
 
-        genre_str = ', '.join(view.value)
         genre = view.value
+        genre_str = ', '.join([GENRE_OPTIONS[ind] for ind in view.value])
 
         await inter.edit_original_response('Игра в процессе добавления, ожидайте ...', view=None)
 
@@ -291,7 +291,7 @@ class GameNewCommand(commands.Cog):
         await torrent.save(f'media/torrents/{path}/' + file_name + '.torrent')
 
         if fix is not None:
-            await fix.save(f'media/torrents/{path}' + fix.filename)
+            await fix.save(f'media/torrents/{path}/' + fix.filename)
 
         await inter.delete_original_response()
 
@@ -321,12 +321,15 @@ class GameSearchCommand(commands.Cog):
 
         i = 0
         while i is not None:
+            gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in games[i][6].split(',')])
+            genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in games[i][5].split(',')])
+
             emb = disnake.Embed(title=games[i][0], color=disnake.Colour.blue())
             emb.add_field(name='Версия:', value=games[i][4])
-            emb.add_field(name='Количество скачиваний:', value=games[i][9])
+            emb.add_field(name='Загрузки:', value=games[i][9])
             emb.add_field(name='Оценка:', value=round(games[i][10], 2))
-            emb.add_field(name='Тип игры:', value=games[i][6], inline=False)
-            emb.add_field(name='Жанр игры:', value=games[i][5], inline=False)
+            emb.add_field(name='Тип игры:', value=gtype, inline=False)
+            emb.add_field(name='Жанр игры:', value=genre, inline=False)
             emb.add_field(name='Системные требования:', value=games[i][7], inline=False)
             emb.add_field(name='Описание:', value=games[i][8], inline=False)
             emb.add_field(name='Автор добавления:', value='<@' + str(games[i][2]) + '>', inline=False)
@@ -351,10 +354,13 @@ class GameSearchCommand(commands.Cog):
                     j = 0
                     res = None
                     while j is not None and res != 'back':
+                        gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in vers[j][6].split(',')])
+                        genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in vers[i][5].split(',')])
+
                         emb = disnake.Embed(title=f'Скачать {games[i][0]}', color=disnake.Colour.blue())
                         emb.add_field(name='Версия:', value=vers[j][4])
-                        emb.add_field(name='Тип игры:', value=vers[j][6], inline=False)
-                        emb.add_field(name='Жанр игры:', value=vers[j][5], inline=False)
+                        emb.add_field(name='Тип игры:', value=gtype, inline=False)
+                        emb.add_field(name='Жанр игры:', value=genre, inline=False)
                         emb.add_field(name='Описание:', value=vers[j][8], inline=False)
                         emb.add_field(name='Автор добавления:', value='<@' + str(vers[j][2]) + '>', inline=False)
                         emb.set_footer(text=f'Страница {j + 1}/{len(vers)}\n')
