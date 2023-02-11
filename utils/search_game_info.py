@@ -14,23 +14,7 @@ def name_conversion(name):
     :return:
     """
 
-    res = ''
-    f = False
-
-    for i in name:
-        if f and i not in ' !"№;%:?*()_+`\'.,/\\':
-            res += '-' + i
-            f = False
-        elif f and i == ' ':
-            f = False
-        elif i == ' ':
-            res += '-'
-        elif i in '-−–—':
-            f = True
-        elif i not in '!"№;%:?*()_+`\'.,/\\':
-            res += i
-
-    return res
+    return '-'.join(''.join([s for s in name.lower() if s not in '!"№;%:?*()-−–—_+`&’\'.,/\\']).split())
 
 
 async def search_requirements(title):
