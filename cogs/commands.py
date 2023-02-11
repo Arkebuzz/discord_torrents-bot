@@ -65,15 +65,15 @@ class OtherCommand(commands.Cog):
 
     @delete_game.autocomplete('name')
     async def autocomplete(self, _, string: str):
-        return [name[0] for name in db.get_version2delete(name=string)]
+        return [name[0] for name in db.get_version2delete(name=string)[:25]]
 
     @delete_game.autocomplete('version')
     async def autocomplete(self, _, string: str):
-        return [name[1] for name in db.get_version2delete(version=string)]
+        return [name[1] for name in db.get_version2delete(version=string)[:25]]
 
     @delete_game.autocomplete('user_id')
     async def autocomplete(self, _, string: str):
-        return [str(name[2]) for name in db.get_version2delete(user=string)]
+        return [str(name[2]) for name in db.get_version2delete(user=string)[:25]]
 
     @commands.slash_command(
         name='info',
@@ -354,13 +354,13 @@ class GameSearchCommand(commands.Cog):
                     j = 0
                     res = None
                     while j is not None and res != 'back':
-                        gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in vers[j][6].split(',')])
-                        genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in vers[i][5].split(',')])
+                        temp_gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in vers[j][6].split(',')])
+                        temp_genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in vers[j][5].split(',')])
 
                         emb = disnake.Embed(title=f'Скачать {games[i][0]}', color=disnake.Colour.blue())
                         emb.add_field(name='Версия:', value=vers[j][4])
-                        emb.add_field(name='Тип игры:', value=gtype, inline=False)
-                        emb.add_field(name='Жанр игры:', value=genre, inline=False)
+                        emb.add_field(name='Тип игры:', value=temp_gtype, inline=False)
+                        emb.add_field(name='Жанр игры:', value=temp_genre, inline=False)
                         emb.add_field(name='Описание:', value=vers[j][8], inline=False)
                         emb.add_field(name='Автор добавления:', value='<@' + str(vers[j][2]) + '>', inline=False)
                         emb.set_footer(text=f'Страница {j + 1}/{len(vers)}\n')
@@ -536,7 +536,7 @@ class GameSearchCommand(commands.Cog):
 
     @search_name.autocomplete('name')
     async def autocomplete(self, _, string: str):
-        return [name[0] for name in db.search_games(string)]
+        return [name[0] for name in db.search_games(string)[:25]]
 
 
 class Statistic(commands.Cog):
@@ -557,7 +557,7 @@ class Statistic(commands.Cog):
 
         logger.info(f'[CALL] <@{inter.author.id}> /game_top')
 
-        games = db.top_games()
+        games = db.top_games()[:10]
 
         emb = disnake.Embed(title='Топ игр', color=disnake.Colour.blue())
         emb.add_field(name='Игра', value='\n'.join([g[0] for g in games]))
@@ -580,7 +580,7 @@ class Statistic(commands.Cog):
 
         logger.info(f'[CALL] <@{inter.author.id}> /user_top')
 
-        users = db.top_users()
+        users = db.top_users()[:10]
 
         emb = disnake.Embed(title='Топ пользователей', color=disnake.Colour.blue())
         emb.add_field(name='Ник', value='\n'.join(['<@' + str(i[0]) + '>' for i in users]))
