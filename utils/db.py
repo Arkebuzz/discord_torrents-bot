@@ -49,13 +49,8 @@ class DB:
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS genre4version(
                version_id INTEGER,
-               genre TEXT, 
-               FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE);
-               ''')
-
-        self.cur.execute('''CREATE TABLE IF NOT EXISTS type4version(
-               version_id INTEGER,
-               type TEXT,
+               genre INTEGER, 
+               type INTEGER,
                FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE);
                ''')
 
@@ -68,6 +63,20 @@ class DB:
                FOREIGN KEY(game_name) REFERENCES games(name) ON DELETE CASCADE,
                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
                ''')
+
+    def update_guild_settings(self, guild_id, channel_id):
+        """
+        Обновляет настройки канала сервера.
+
+        :param guild_id: ID сервера.
+        :param channel_id: Новое ID канала.
+        :return:
+        """
+
+        self.cur.execute('INSERT INTO guilds VALUES(?, ?) ON CONFLICT (id) DO UPDATE SET channel_id = ?',
+                         (guild_id, channel_id, channel_id))
+
+        self.conn.commit()
 
     def get_guilds(self, guild_id=None):
         """
@@ -86,21 +95,7 @@ class DB:
 
         return res
 
-    def update_guild_settings(self, guild_id, channel_id):
-        """
-        Обновляет настройки канала сервера.
-
-        :param guild_id: ID сервера.
-        :param channel_id: Новое ID канала.
-        :return:
-        """
-
-        self.cur.execute('INSERT INTO guilds VALUES(?, ?) ON CONFLICT (id) DO UPDATE SET channel_id = ?',
-                         (guild_id, channel_id, channel_id))
-
-        self.conn.commit()
-
-    def guild_remove(self, guild_id):
+    def delete_guild(self, guild_id):
         """
         Удаление сервер из БД.
 
@@ -133,10 +128,9 @@ class DB:
 
             lastrowid = cur.lastrowid
 
-            cur.executemany('INSERT INTO genre4version VALUES(?, ?)',
-                            [(lastrowid, genre) for genre in game[4]])
-            cur.executemany('INSERT INTO type4version VALUES(?, ?)',
-                            [(lastrowid, genre) for genre in game[5]])
+            cur.executemany('INSERT INTO genre4version VALUES(?, ?, ?)',
+                            [(lastrowid, genre, None) for genre in game[4]] +
+                            [(lastrowid, None, gtype) for gtype in game[5]])
 
             conn.commit()
 
@@ -153,7 +147,7 @@ class DB:
         self.cur.execute('SELECT * FROM games WHERE name = ?', (name,))
         return self.cur.fetchall()
 
-    def search_game(self, name=None, genre=None, gtype=None):
+    def search_games(self, name=None, genre=None, gtype=None):
         """
         Поиск игр по названию, типу или жанру, если параметры не переданы, выводит все игры.
 
@@ -165,73 +159,144 @@ class DB:
 
         if name is not None:
             self.cur.execute(f'''
-                SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                SELECT game_name, id, user_id, img_url, max(version),  
+                group_concat(genre.genre), group_concat(genre.type),
                 sys_requirements, description, downloads, score 
-                FROM games, versions 
-                WHERE name LIKE "%{name}%" AND game_name = name GROUP BY name;
+                FROM games, versions
+                JOIN genre4version AS genre ON genre.version_id = id
+                WHERE name LIKE "%{name}%" AND game_name = name 
+                GROUP BY name;
             ''')
             res = self.cur.fetchall()
 
-        elif genre is not None:
-            genre_str = ', '.join(genre)
-            self.cur.execute('''
-                SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+        elif genre is not None and gtype is not None:
+            genre_str = '", "'.join(map(str, genre))
+            gtype_str = '", "'.join(map(str, gtype))
+
+            self.cur.execute(f'''
+                SELECT game_name, id, user_id, img_url, max(version),  
+                group_concat(genre.genre), group_concat(genre.type),
                 sys_requirements, description, downloads, score 
-                FROM games, (SELECT *
-                    FROM genre4version, versions
-                    WHERE id = version_id
-                    AND (genre IN (?))
-                    GROUP BY id
-                    HAVING COUNT(id) = ?)
-                WHERE name = game_name
-                GROUP BY game_name;
-            ''', (genre_str, len(genre)))
+                FROM games, (
+                         SELECT *
+                         FROM genre4version, versions
+                         WHERE id = version_id
+                         AND ((genre IN ("{genre_str}")) OR (type IN ("{gtype_str}")))
+                         GROUP BY id
+                         HAVING COUNT(id) = ?
+                     )
+                JOIN genre4version AS genre ON genre.version_id = id
+                WHERE game_name = name 
+                GROUP BY name;
+            ''', (len(genre) + len(gtype),))
             res = self.cur.fetchall()
 
         elif gtype is not None:
-            gtype_str = ', '.join(gtype)
-            self.cur.execute('''
-                SELECT name, id, user_id, img_url, max(version),  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+            gtype_str = '", "'.join(map(str, gtype))
+            self.cur.execute(f'''
+                SELECT game_name, id, user_id, img_url, max(version),  
+                group_concat(genre.genre), group_concat(genre.type),
                 sys_requirements, description, downloads, score 
-                FROM games, (SELECT *
-                    FROM type4version, versions
-                    WHERE id = version_id
-                    AND (type IN (?))
-                    GROUP BY id
-                    HAVING COUNT(id) = ?)
-                WHERE name = game_name
-                GROUP BY game_name;
-            ''', (gtype_str, len(gtype)))
+                FROM games, (
+                         SELECT *
+                         FROM genre4version, versions
+                         WHERE id = version_id
+                         AND (type IN ("{gtype_str}"))
+                         GROUP BY id
+                         HAVING COUNT(id) = ?
+                     )
+                JOIN genre4version AS genre ON genre.version_id = id
+                WHERE game_name = name 
+                GROUP BY name;
+            ''', (len(gtype),))
+            res = self.cur.fetchall()
+
+        elif genre is not None:
+            genre_str = '", "'.join(map(str, genre))
+            self.cur.execute(f'''
+                SELECT game_name, id, user_id, img_url, max(version),  
+                group_concat(genre.genre), group_concat(genre.type),
+                sys_requirements, description, downloads, score 
+                FROM games, (
+                         SELECT *
+                         FROM genre4version, versions
+                         WHERE id = version_id
+                         AND (genre IN ("{genre_str}"))
+                         GROUP BY id
+                         HAVING COUNT(id) = ?
+                     )
+                JOIN genre4version AS genre ON genre.version_id = id
+                WHERE game_name = name 
+                GROUP BY name;
+            ''', (len(genre),))
             res = self.cur.fetchall()
 
         else:
             self.cur.execute('''
-                SELECT name, id, user_id, img_url, version,  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                SELECT game_name, id, user_id, img_url, max(version),  
+                group_concat(genre.genre), group_concat(genre.type),
                 sys_requirements, description, downloads, score 
-                FROM games, versions;
+                FROM games, versions
+                JOIN genre4version AS genre ON genre.version_id = id
+                WHERE game_name = name 
+                GROUP BY id;
             ''')
             res = self.cur.fetchall()
 
         return res
 
+    def get_version2delete(self, name=None, version=None, user=None):
+        """
+        Краткий поиск версий в БД. Должен быть передан только 1 параметр!
+
+        :param name:
+        :param version:
+        :param user:
+        :return:
+        """
+
+        if name is not None:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE game_name LIKE "%{name}%"
+                GROUP BY game_name
+                ''')
+        elif version is not None:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE version LIKE "%{version}%"
+                GROUP BY version
+                ''')
+        else:
+            self.cur.execute(f'''
+                SELECT game_name, version, user_id 
+                FROM versions
+                WHERE user_id LIKE "%{user}%"
+                GROUP BY user_id
+                ''')
+
+        return self.cur.fetchall()
+
     def get_versions(self, game):
-        self.cur.execute('''
+        if game:
+            self.cur.execute('''
                 SELECT game_name, id, user_id, img_url, version,  
-                (SELECT ALL group_concat(genre, ", ") FROM genre4version WHERE version_id = id),
-                (SELECT ALL group_concat(type, ", ") FROM type4version WHERE version_id = id),
+                group_concat(genre.genre), group_concat(genre.type),
                 sys_requirements, description
                 FROM versions
+                JOIN genre4version AS genre ON genre.version_id = id
                 WHERE game_name = ?
-                ''', (game,)
-                         )
+                ''', (game,))
+        else:
+            self.cur.execute('''
+                SELECT game_name, id, user_id, img_url, version,  
+                group_concat(genre.genre), group_concat(genre.type),
+                sys_requirements, description
+                FROM versions
+                JOIN genre4version AS genre ON genre.version_id = id
+            ''')
         return self.cur.fetchall()
 
     def get_comments(self, game):
@@ -256,7 +321,7 @@ class DB:
 
         self.conn.commit()
 
-    def add_reaction(self, name, user_id, react):
+    def new_reaction(self, name, user_id, react):
         """
         Добавление отзыва к игре.
 
@@ -299,6 +364,15 @@ class DB:
 
         self.conn.commit()
 
+    def delete_version(self, name, version, user_id):
+        self.cur.execute('DELETE FROM versions '
+                         'WHERE game_name = ? AND version = ? AND user_id = ?',
+                         (name, version, user_id))
+
+        self.cur.execute('SELECT * FROM versions WHERE game_name = ?', (name,))
+        if not self.cur.fetchall():
+            self.cur.execute('DELETE FROM games WHERE name = ?', (name,))
+
     def top_games(self):
         """
         Возвращает все игры, отсортированные в порядке убывания скачиваний и комментариев.
@@ -326,33 +400,3 @@ class DB:
             ORDER BY added * 5 + votes * 3 + downloads DESC;
         ''')
         return self.cur.fetchall()
-
-
-if __name__ == '__main__':
-    db = DB('../media/game.db')
-
-    # db.add_reaction('Homeworld Remastered Collection', 11, (5, ''))
-
-    # print(*db.get_tags(), sep='\n')
-    # r = db.search_game(gtype=['одиночная игра'])
-    # print(*r, sep='\n')
-
-    # db.create_db()
-    # db.new_game(
-    #     ('ping pong', 2, 'url21', 'v1.0', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('ping pong', 2, 'url31', 'v1.9', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('ping pong', 2, 'url51', 'v0.5', ['аркада', 'стратегия в реальном времени'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url01', 'v3.5', ['аркада'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url23', 'v1.5', ['аркада'], ['одиночная игра'], '', '')
-    # )
-    # db.new_game(
-    #     ('tetris', 1, 'url221', 'v6.5', ['аркада'], ['одиночная игра'], '', '')
-    # )
