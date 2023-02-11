@@ -28,7 +28,7 @@ async def refresh(bot):
 
             for channel in g.text_channels:
                 try:
-                    await channel.send('Для первоначальной настройки бота используйте функцию /option.\n'
+                    await channel.send('Для первоначальной настройки бота используйте функцию /set_main_channel.\n'
                                        'Бот не будет корректно работать, пока Вы этого не сделаете.')
                     break
                 except disnake.errors.Forbidden:
