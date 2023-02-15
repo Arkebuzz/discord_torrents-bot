@@ -99,7 +99,7 @@ class OtherCommand(commands.Cog):
                             '~Изменён поиск по жанровой принадлежности.\n'
                             '~Проведены оптимизация кода и исправление ошибок.'
                             '```', inline=False)
-        emb.set_footer(text='@Arkebuzz#7717\nhttps://github.com/Arkebuzz/ds_bot',
+        emb.set_footer(text='@Arkebuzz#7717\nhttps://github.com/Arkebuzz/discord_torrents-bot',
                        icon_url='https://cdn.discordapp.com/avatars/542244057947308063/'
                                 '4b8f2972eb7475f44723ac9f84d9c7ec.png?size=1024')
 
