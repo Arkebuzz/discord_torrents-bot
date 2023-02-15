@@ -16,26 +16,10 @@ async def refresh(bot):
 
     logger.info('[START] guilds refresh')
 
-    guilds = [g.id for g in bot.guilds]
+    db = DB()
+    cur_guilds = [g.id for g in bot.guilds]
 
-    if IDS != guilds:
-        for guild in set(IDS) - set(guilds):
-            DB().delete_guild(guild)
-            logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {id}')
-
-        for guild in set(guilds) - set(IDS):
-            g = bot.get_guild(guild)
-
-            for channel in g.text_channels:
-                try:
-                    await channel.send('Для первоначальной настройки бота используйте функцию /set_main_channel.\n'
-                                       'Бот не будет корректно работать, пока Вы этого не сделаете.')
-                    break
-                except disnake.errors.Forbidden:
-                    continue
-
-            logger.warning(f'[IN PROGRESS] guilds refresh : {guild} not in DB -> warning sent')
-
+    if IDS != cur_guilds:
         ids = [str(g.id) for g in bot.guilds]
 
         with open('config.py', 'r') as f:
@@ -52,11 +36,35 @@ async def refresh(bot):
         import os
         import sys
 
-        logger.warning(f'[FINISHED] guilds refresh : BOT RESTARTING')
-
+        logger.warning(f'[FINISHED] guilds refresh in config : BOT RESTARTING')
         os.execv(sys.executable, [sys.executable, sys.argv[0]])
 
-    logger.info('[FINISHED] guilds refresh')
+    db_guilds = [g[0] for g in db.get_guilds()]
+
+    if db_guilds != cur_guilds:
+        for guild in set(db_guilds) - set(cur_guilds):
+            db.delete_guild(guild)
+            logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {id} but it`s in DB')
+
+        for guild in set(cur_guilds) - set(db_guilds):
+            g = bot.get_guild(guild)
+            channels = (
+                (g.system_channel,) if g.system_channel is not None else () +
+                (g.public_updates_channel,) if g.public_updates_channel is not None else () +
+                g.text_channels
+            )
+
+            for channel in channels:
+                try:
+                    await channel.send('Для первоначальной настройки бота используйте функцию /set_main_channel.\n'
+                                       'Бот не будет корректно работать, пока Вы этого не сделаете.')
+                    break
+                except disnake.errors.Forbidden:
+                    continue
+
+            logger.warning(f'[IN PROGRESS] guilds refresh : {guild} not in DB -> warning sent')
+
+    logger.info('[FINISHED] all guilds refresh')
 
 
 class BotEvents(commands.Cog):
@@ -64,6 +72,17 @@ class BotEvents(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """
+        Выполняется, когда бот запустился.
+
+        :return:
+        """
+
+        logger.info('Bot started')
+        await refresh(self.bot)
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: disnake.Intents.guilds):

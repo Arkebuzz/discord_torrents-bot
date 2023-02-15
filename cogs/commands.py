@@ -21,7 +21,8 @@ class OtherCommand(commands.Cog):
 
     @commands.slash_command(
         name='set_main_channel',
-        description='Выбрать основной канал для бота.'
+        description='Выбрать основной канал для бота.',
+        default_member_permissions=disnake.Permissions(8)
     )
     async def settings(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
         """
@@ -37,13 +38,13 @@ class OtherCommand(commands.Cog):
         await inter.response.send_message('Выполнена настройка основного канала для бота, '
                                           f'теперь основной канал - {channel}')
 
-        logger.info(f'[CALL] <@{inter.author.id}> set_main_channel channel: {channel}')
+        logger.info(f'[CALL] <@{inter.author.id}> /set_main_channel channel: {channel}')
 
     @commands.slash_command(
-        name='delete_game',
+        name='game_delete',
         description='Удалить версию игры'
     )
-    async def delete_game(self, inter: disnake.ApplicationCommandInteraction,
+    async def game_delete(self, inter: disnake.ApplicationCommandInteraction,
                           name: str, version: str, user_id: str):
         """
         Слэш-команда, позволяет админу удалить версию игры.
@@ -58,20 +59,20 @@ class OtherCommand(commands.Cog):
         if inter.author.id in ADMINS:
             db.delete_version(name, version, user_id)
             await inter.response.send_message('Все версии игр с заданными данными удалены!', ephemeral=True)
-            logger.info(f'[CALL] <@{inter.author.id}> /delete_game name: {name}, version: {version} GAME`s DELETE')
+            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} GAME`s DELETE')
         else:
             await inter.response.send_message('У вас нет прав для выполнения данной операции!', ephemeral=True)
-            logger.info(f'[CALL] <@{inter.author.id}> /delete_game name: {name}, version: {version} NO RIGHTS')
+            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} NO RIGHTS')
 
-    @delete_game.autocomplete('name')
+    @game_delete.autocomplete('name')
     async def autocomplete(self, _, string: str):
         return [name[0] for name in db.get_version2delete(name=string)[:25]]
 
-    @delete_game.autocomplete('version')
+    @game_delete.autocomplete('version')
     async def autocomplete(self, _, string: str):
         return [name[1] for name in db.get_version2delete(version=string)[:25]]
 
-    @delete_game.autocomplete('user_id')
+    @game_delete.autocomplete('user_id')
     async def autocomplete(self, _, string: str):
         return [str(name[2]) for name in db.get_version2delete(user=string)[:25]]
 
@@ -87,11 +88,9 @@ class OtherCommand(commands.Cog):
         :return:
         """
 
-        emb = disnake.Embed(title='Информация о боте:', color=disnake.Colour.blue())
-        emb.set_thumbnail(r'https://www.pinclipart.com/picdir/big/525-5256722_file-circle-icons-gamecontroller-game'
-                          r'-icon-png-circle.png')
-        emb.add_field(name='Название:', value='GTBot')
-        emb.add_field(name='Версия:', value='release v1.2')
+        emb = disnake.Embed(title=f'Информация о боте "{self.bot.user}":', color=disnake.Colour.blue())
+        emb.set_thumbnail(self.bot.user.avatar)
+        emb.add_field(name='Версия:', value='release v1.2.3')
         emb.add_field(name='Описание:', value='Бот создан для упрощения обмена торрентами.', inline=False)
         emb.add_field(name='Что нового:',
                       value='```diff\nv1\n'
@@ -101,9 +100,8 @@ class OtherCommand(commands.Cog):
                             '~Проведены оптимизация кода и исправление ошибок.'
                             '```', inline=False)
         emb.set_footer(text='@Arkebuzz#7717\nhttps://github.com/Arkebuzz/ds_bot',
-                       icon_url='https://sun1-27.userapi.com/s/v1/ig1'
-                                '/FEUHI48F0M7K3DXhPtF_hChVzAsFiKAvaTvSG3966WmikzGIrLrj0u7UPX7o_zQ1vMW0x4CP.jpg?size'
-                                '=400x400&quality=96&crop=528,397,709,709&ava=1')
+                       icon_url='https://cdn.discordapp.com/avatars/542244057947308063/'
+                                '4b8f2972eb7475f44723ac9f84d9c7ec.png?size=1024')
 
         await inter.response.send_message(embed=emb)
         logger.info(f'[CALL] <@{inter.author.id}> /info')
@@ -146,10 +144,10 @@ class GameNewCommand(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='new_game',
+        name='game_new',
         description='Добавить новую игру. Введите название игры.',
     )
-    async def new_game(self, inter: disnake.ApplicationCommandInteraction, name: str,
+    async def game_new(self, inter: disnake.ApplicationCommandInteraction, name: str,
                        torrent: disnake.Attachment, fix: disnake.Attachment = None):
         """
         Слэш-команда, добавляет новую игры в библиотеку.
@@ -161,7 +159,7 @@ class GameNewCommand(commands.Cog):
         :return:
         """
 
-        logger.info(f'[CALL] <@{inter.author.id}> /new_game name: {name}; torrent: {torrent.filename}; '
+        logger.info(f'[CALL] <@{inter.author.id}> /game_new name: {name}; torrent: {torrent.filename}; '
                     f'fix: {fix.filename if fix is not None else None}')
 
         if torrent.content_type != 'application/x-bittorrent':
@@ -171,7 +169,7 @@ class GameNewCommand(commands.Cog):
                 color=disnake.Colour.red()
             )
             await inter.response.send_message(embed=emb, ephemeral=True)
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : file isn`t torrent')
+            logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : file isn`t torrent')
             return
 
         file_name = ''
@@ -181,7 +179,7 @@ class GameNewCommand(commands.Cog):
 
         game = db.check_game(name)
         if game:
-            logger.info(f'[IN PROGRESS] <@{inter.author.id}> /new_game : game already in DB')
+            logger.info(f'[IN PROGRESS] <@{inter.author.id}> /game_new : game already in DB')
 
             emb = disnake.Embed(
                 title='Данная игра уже есть в БД!',
@@ -197,22 +195,22 @@ class GameNewCommand(commands.Cog):
             inter = view.inter
 
             if f == 'search':
-                logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : starting search')
+                logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : starting search')
                 await inter.response.defer()
                 await GameSearchCommand(self.bot).main_search(inter, name, None, None)
                 return
 
             elif f is None:
                 await inter.delete_original_response()
-                logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : no response to confirmation, time is up')
+                logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : no response to confirmation, time is up')
                 return
 
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : confirm, continue')
+            logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : confirm, continue')
 
         req = await search_requirements(name)
         if not req:
             req = 'Не удалось найти системные требования для вашей игры.'
-            logger.warning(f'[IN PROGRESS] <@{inter.author.id}> /new_game : system requirements not found name: {name}')
+            logger.warning(f'[IN PROGRESS] <@{inter.author.id}> /game_new : system requirements not found name: {name}')
             md = GameModal(name, placeholder_sr=req)
         else:
             md = GameModal(name, system_req=req)
@@ -221,7 +219,7 @@ class GameNewCommand(commands.Cog):
         await md.wait()
 
         if md.res is None:
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : time is up for modal window')
+            logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : time is up for modal window')
             return
 
         name = md.res[0][1]
@@ -235,7 +233,7 @@ class GameNewCommand(commands.Cog):
         await view.wait()
 
         if view.value is None:
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game type not selected, time is up')
+            logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : game type not selected, time is up')
             return
 
         gtype = view.value
@@ -246,7 +244,7 @@ class GameNewCommand(commands.Cog):
         await view.wait()
 
         if view.value is None:
-            logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game genre not selected, time is up')
+            logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : game genre not selected, time is up')
             return
 
         genre = view.value
@@ -295,7 +293,7 @@ class GameNewCommand(commands.Cog):
 
         await inter.delete_original_response()
 
-        logger.info(f'[FINISHED] <@{inter.author.id}> /new_game : game is added {name}, {genre_str}, {type_str}')
+        logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : game is added {name}, {genre_str}, {type_str}')
 
 
 class GameSearchCommand(commands.Cog):
@@ -311,7 +309,7 @@ class GameSearchCommand(commands.Cog):
             emb = disnake.Embed(
                 title='Данной игры нет в БД!',
                 description='Игр c данными тегами нет в базе данных бота. '
-                            'Вы можете добавить новые игры при помощи команды "/new_game"',
+                            'Вы можете добавить новые игры при помощи команды "/game_new"',
                 color=disnake.Colour.red()
             )
 
@@ -473,7 +471,7 @@ class GameSearchCommand(commands.Cog):
             logger.warning(f'[FINISHED] <@{inter.author.id}> /search : time`s up')
 
     @commands.slash_command(
-        name='search_game4type',
+        name='game_search4type',
         description='Ищет игру по жанровой принадлежности.'
     )
     async def search_type(self, inter: disnake.ApplicationCommandInteraction):
@@ -513,7 +511,7 @@ class GameSearchCommand(commands.Cog):
         await self.main_search(inter, name, gtype, genre)
 
     @commands.slash_command(
-        name='search_game4name',
+        name='game_search4name',
         description='Ищет игру по названию.'
     )
     async def search_name(self, inter: disnake.ApplicationCommandInteraction,
@@ -544,10 +542,10 @@ class Statistic(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='top_games',
+        name='game_top',
         description='Топ игр по количеству скачиваний.',
     )
-    async def top_games(self, inter: disnake.ApplicationCommandInteraction):
+    async def game_top(self, inter: disnake.ApplicationCommandInteraction):
         """
         Слэш-команда, выводит топ игр по количеству скачиваний.
 
@@ -567,10 +565,10 @@ class Statistic(commands.Cog):
         await inter.response.send_message(embed=emb)
 
     @commands.slash_command(
-        name='top_users',
+        name='user_top',
         description='Топ пользователей по количеству активности.',
     )
-    async def top_users(self, inter: disnake.ApplicationCommandInteraction):
+    async def users_top(self, inter: disnake.ApplicationCommandInteraction):
         """
         Слэш-команда, выводит топ пользователей по активности.
 

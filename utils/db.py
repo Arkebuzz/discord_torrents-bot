@@ -14,7 +14,7 @@ class DB:
 
     def create_db(self):
         """
-        Создаёт БД по пути path.
+        Создаёт БД.
 
         :return:
         """
