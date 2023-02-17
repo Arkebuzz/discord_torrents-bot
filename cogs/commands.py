@@ -21,7 +21,7 @@ class OtherCommand(commands.Cog):
 
     @commands.slash_command(
         name='set_main_channel',
-        description='Выбрать основной канал для бота.',
+        description='Выбрать основной канал для бота',
         default_member_permissions=disnake.Permissions(8)
     )
     async def settings(self, inter: disnake.ApplicationCommandInteraction, channel: disnake.TextChannel):
@@ -42,7 +42,7 @@ class OtherCommand(commands.Cog):
 
     @commands.slash_command(
         name='help',
-        description='Описание команд бота.',
+        description='Описание команд бота',
         default_member_permissions=disnake.Permissions(8)
     )
     async def help(self, inter: disnake.ApplicationCommandInteraction):
@@ -62,13 +62,13 @@ class OtherCommand(commands.Cog):
         emb.add_field('Команда', '\n'.join(com.name for com in self.bot.slash_commands))
         emb.add_field('Описание', '\n'.join(com.description for com in self.bot.slash_commands))
 
-        await inter.response.send_message(embed=emb)
+        await inter.response.send_message(embed=emb, ephemeral=True)
 
         logger.info(f'[CALL] <@{inter.author.id}> /help')
 
     @commands.slash_command(
         name='info',
-        description='Информация о боте.',
+        description='Информация о боте',
     )
     async def info(self, inter: disnake.ApplicationCommandInteraction):
         """
@@ -98,7 +98,7 @@ class OtherCommand(commands.Cog):
 
     @commands.slash_command(
         name='ping',
-        description='Задержку бота.',
+        description='Задержка бота',
     )
     async def ping(self, inter: disnake.ApplicationCommandInteraction):
         """
@@ -114,7 +114,7 @@ class OtherCommand(commands.Cog):
 
     @commands.slash_command(
         name='roll',
-        description='Случайное число от 1 до 100.',
+        description='Случайное число от 1 до 100',
     )
     async def roll(self, inter: disnake.ApplicationCommandInteraction):
         """
@@ -171,7 +171,7 @@ class GameCommand(commands.Cog):
 
     @commands.slash_command(
         name='game_new',
-        description='Добавление новой игры. Введите название игры.',
+        description='Добавление новой игры',
     )
     async def game_new(self, inter: disnake.ApplicationCommandInteraction, name: str,
                        torrent: disnake.Attachment, fix: disnake.Attachment = None):
@@ -493,7 +493,7 @@ class GameCommand(commands.Cog):
 
     @commands.slash_command(
         name='game_search4type',
-        description='Поиск игр по жанровой принадлежности.'
+        description='Поиск игр по жанровой принадлежности'
     )
     async def search_type(self, inter: disnake.ApplicationCommandInteraction):
         """
@@ -533,7 +533,7 @@ class GameCommand(commands.Cog):
 
     @commands.slash_command(
         name='game_search4name',
-        description='Поиск игр по названию.'
+        description='Поиск игр по названию'
     )
     async def search_name(self, inter: disnake.ApplicationCommandInteraction,
                           name: str):
@@ -564,7 +564,7 @@ class Statistic(commands.Cog):
 
     @commands.slash_command(
         name='game_top',
-        description='Топ игр по популярности.',
+        description='Топ игр по популярности',
     )
     async def game_top(self, inter: disnake.ApplicationCommandInteraction):
         """
@@ -587,7 +587,7 @@ class Statistic(commands.Cog):
 
     @commands.slash_command(
         name='user_top',
-        description='Топ пользователей по активности.',
+        description='Топ пользователей по активности',
     )
     async def users_top(self, inter: disnake.ApplicationCommandInteraction):
         """
