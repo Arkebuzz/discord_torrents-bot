@@ -88,6 +88,16 @@ class BotEvents(commands.Cog):
             try:
                 await channel.send('Здравствуйте, я очень рад, что вы добавили меня на сервер.')
 
+                emb = disnake.Embed(
+                    description='Я умею получать от вас торренты игр и присылать вам, когда они вам понадобятся.\n\n'
+                                'Описание команд'
+                )
+
+                emb.add_field('Команда', '\n'.join(com.name for com in self.bot.slash_commands))
+                emb.add_field('Описание', '\n'.join(com.description for com in self.bot.slash_commands))
+
+                await channel.send(embed=emb)
+
                 await channel.send('Если вам нужны оповещения о новых играх, которые добавили боту, то выберите для '
                                    'них  канал командой /set_main_channel')
 

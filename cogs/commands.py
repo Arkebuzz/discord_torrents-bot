@@ -45,7 +45,7 @@ class OtherCommand(commands.Cog):
         description='Получить описание команд бота.',
         default_member_permissions=disnake.Permissions(8)
     )
-    async def settings(self, inter: disnake.ApplicationCommandInteraction):
+    async def help(self, inter: disnake.ApplicationCommandInteraction):
         """
         Слэш-команда, отправляет сообщение с описанием команд.
 
