@@ -17,7 +17,9 @@ async def refresh(bot):
     logger.info('[START] guilds refresh')
 
     db = DB()
+
     cur_guilds = [g.id for g in bot.guilds]
+    db_guilds = [g[0] for g in db.get_guilds()]
 
     if IDS != cur_guilds:
         ids = [str(g.id) for g in bot.guilds]
@@ -39,30 +41,17 @@ async def refresh(bot):
         logger.warning(f'[FINISHED] guilds refresh in config : BOT RESTARTING')
         os.execv(sys.executable, [sys.executable, sys.argv[0]])
 
-    db_guilds = [g[0] for g in db.get_guilds()]
-
     if db_guilds != cur_guilds:
-        for guild in set(db_guilds) - set(cur_guilds):
-            db.delete_guild(guild)
+        for guild_id in set(db_guilds) - set(cur_guilds):
+            db.delete_guild(guild_id)
             logger.warning(f'[IN PROGRESS] guilds refresh : bot not in {id} but it`s in DB')
 
-        for guild in set(cur_guilds) - set(db_guilds):
-            g = bot.get_guild(guild)
-            channels = (
-                (g.system_channel,) if g.system_channel is not None else () +
-                (g.public_updates_channel,) if g.public_updates_channel is not None else () +
-                g.text_channels
-            )
+        for guild_id in set(cur_guilds) - set(db_guilds):
+            logger.info(f'[IN PROGRESS] guilds refresh : {guild_id} not in DB -> starting messages analyze')
 
-            for channel in channels:
-                try:
-                    await channel.send('Для первоначальной настройки бота используйте функцию /set_main_channel.\n'
-                                       'Бот не будет корректно работать, пока Вы этого не сделаете.')
-                    break
-                except disnake.errors.Forbidden:
-                    continue
+            db.update_guild_settings(guild_id)
 
-            logger.warning(f'[IN PROGRESS] guilds refresh : {guild} not in DB -> warning sent')
+            logger.info(f'[IN PROGRESS] guilds refresh : {guild_id} not in DB -> messages are analyzed')
 
     logger.info('[FINISHED] all guilds refresh')
 
@@ -94,6 +83,18 @@ class BotEvents(commands.Cog):
         """
 
         logger.info(f'[NEW GUILD] <{guild.id}>')
+
+        for channel in guild.text_channels:
+            try:
+                await channel.send('Здравствуйте, я очень рад, что вы добавили меня на сервер.')
+
+                await channel.send('Если вам нужны оповещения о новых играх, которые добавили боту, то выберите для '
+                                   'них  канал командой /set_main_channel')
+
+                logger.info(f'[NEW GUILD] <{guild.id}> -> welcome message sent')
+                break
+            except disnake.errors.Forbidden:
+                continue
 
         await refresh(self.bot)
 

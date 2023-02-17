@@ -64,7 +64,7 @@ class DB:
                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
                ''')
 
-    def update_guild_settings(self, guild_id, channel_id):
+    def update_guild_settings(self, guild_id, channel_id=None):
         """
         Обновляет настройки канала сервера.
 

@@ -41,40 +41,29 @@ class OtherCommand(commands.Cog):
         logger.info(f'[CALL] <@{inter.author.id}> /set_main_channel channel: {channel}')
 
     @commands.slash_command(
-        name='game_delete',
-        description='Удалить версию игры'
+        name='help',
+        description='Получить описание команд бота.',
+        default_member_permissions=disnake.Permissions(8)
     )
-    async def game_delete(self, inter: disnake.ApplicationCommandInteraction,
-                          name: str, version: str, user_id: str):
+    async def settings(self, inter: disnake.ApplicationCommandInteraction):
         """
-        Слэш-команда, позволяет админу удалить версию игры.
+        Слэш-команда, отправляет сообщение с описанием команд.
 
         :param inter:
-        :param name:
-        :param version:
-        :param user_id:
         :return:
         """
 
-        if inter.author.id in ADMINS:
-            db.delete_version(name, version, user_id)
-            await inter.response.send_message('Все версии игр с заданными данными удалены!', ephemeral=True)
-            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} GAME`s DELETE')
-        else:
-            await inter.response.send_message('У вас нет прав для выполнения данной операции!', ephemeral=True)
-            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} NO RIGHTS')
+        emb = disnake.Embed(
+            description='Я умею получать от вас торренты игр и присылать вам, когда они вам понадобятся.\n\n'
+                        'Описание команд'
+        )
 
-    @game_delete.autocomplete('name')
-    async def autocomplete(self, _, string: str):
-        return [name[0] for name in db.get_version2delete(name=string)[:25]]
+        emb.add_field('Команда', '\n'.join(com.name for com in self.bot.slash_commands))
+        emb.add_field('Описание', '\n'.join(com.description for com in self.bot.slash_commands))
 
-    @game_delete.autocomplete('version')
-    async def autocomplete(self, _, string: str):
-        return [name[1] for name in db.get_version2delete(version=string)[:25]]
+        await inter.response.send_message(embed=emb)
 
-    @game_delete.autocomplete('user_id')
-    async def autocomplete(self, _, string: str):
-        return [str(name[2]) for name in db.get_version2delete(user=string)[:25]]
+        logger.info(f'[CALL] <@{inter.author.id}> /help')
 
     @commands.slash_command(
         name='info',
@@ -138,8 +127,44 @@ class OtherCommand(commands.Cog):
 
         await inter.response.send_message(random.randint(1, 100))
 
+    @commands.slash_command(
+        name='game_delete',
+        description='Удалить версию игры'
+    )
+    async def game_delete(self, inter: disnake.ApplicationCommandInteraction,
+                          name: str, version: str, user_id: str):
+        """
+        Слэш-команда, позволяет админу удалить версию игры.
 
-class GameNewCommand(commands.Cog):
+        :param inter:
+        :param name:
+        :param version:
+        :param user_id:
+        :return:
+        """
+
+        if inter.author.id in ADMINS:
+            db.delete_version(name, version, user_id)
+            await inter.response.send_message('Все версии игр с заданными данными удалены!', ephemeral=True)
+            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} GAME`s DELETE')
+        else:
+            await inter.response.send_message('У вас нет прав для выполнения данной операции!', ephemeral=True)
+            logger.info(f'[CALL] <@{inter.author.id}> /game_delete name: {name}, version: {version} NO RIGHTS')
+
+    @game_delete.autocomplete('name')
+    async def autocomplete(self, _, string: str):
+        return [name[0] for name in db.get_version2delete(name=string)[:25]]
+
+    @game_delete.autocomplete('version')
+    async def autocomplete(self, _, string: str):
+        return [name[1] for name in db.get_version2delete(version=string)[:25]]
+
+    @game_delete.autocomplete('user_id')
+    async def autocomplete(self, _, string: str):
+        return [str(name[2]) for name in db.get_version2delete(user=string)[:25]]
+
+
+class GameCommand(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -197,7 +222,7 @@ class GameNewCommand(commands.Cog):
             if f == 'search':
                 logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : starting search')
                 await inter.response.defer()
-                await GameSearchCommand(self.bot).main_search(inter, name, None, None)
+                await self.main_search(inter, name, None, None)
                 return
 
             elif f is None:
@@ -237,7 +262,7 @@ class GameNewCommand(commands.Cog):
             return
 
         gtype = view.value
-        type_str = ', '.join([TYPE_OPTIONS[ind - 100][0] for ind in view.value])
+        type_str = ', '.join(TYPE_OPTIONS[ind - 100][0] for ind in view.value)
 
         view = SelectGameGenre()
         await inter.edit_original_response(view=view)
@@ -248,7 +273,7 @@ class GameNewCommand(commands.Cog):
             return
 
         genre = view.value
-        genre_str = ', '.join([GENRE_OPTIONS[ind] for ind in view.value])
+        genre_str = ', '.join(GENRE_OPTIONS[ind] for ind in view.value)
 
         await inter.edit_original_response('Игра в процессе добавления, ожидайте ...', view=None)
 
@@ -295,11 +320,6 @@ class GameNewCommand(commands.Cog):
 
         logger.info(f'[FINISHED] <@{inter.author.id}> /game_new : game is added {name}, {genre_str}, {type_str}')
 
-
-class GameSearchCommand(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-
     @staticmethod
     async def main_search(inter, name, gtype, genre):
         games = db.search_games(name, genre, gtype)
@@ -319,8 +339,8 @@ class GameSearchCommand(commands.Cog):
 
         i = 0
         while i is not None:
-            gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in games[i][6].split(',')])
-            genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in games[i][5].split(',')])
+            gtype = ', '.join(TYPE_OPTIONS[int(ind) - 100][0] for ind in games[i][6].split(','))
+            genre = ', '.join(GENRE_OPTIONS[int(ind)] for ind in games[i][5].split(','))
 
             emb = disnake.Embed(title=games[i][0], color=disnake.Colour.blue())
             emb.add_field(name='Версия:', value=games[i][4])
@@ -352,8 +372,8 @@ class GameSearchCommand(commands.Cog):
                     j = 0
                     res = None
                     while j is not None and res != 'back':
-                        temp_gtype = ', '.join([TYPE_OPTIONS[int(ind) - 100][0] for ind in vers[j][6].split(',')])
-                        temp_genre = ', '.join([GENRE_OPTIONS[int(ind)] for ind in vers[j][5].split(',')])
+                        temp_gtype = ', '.join(TYPE_OPTIONS[int(ind) - 100][0] for ind in vers[j][6].split(','))
+                        temp_genre = ', '.join(GENRE_OPTIONS[int(ind)] for ind in vers[j][5].split(','))
 
                         emb = disnake.Embed(title=f'Скачать {games[i][0]}', color=disnake.Colour.blue())
                         emb.add_field(name='Версия:', value=vers[j][4])
@@ -558,9 +578,9 @@ class Statistic(commands.Cog):
         games = db.top_games()[:10]
 
         emb = disnake.Embed(title='Топ игр', color=disnake.Colour.blue())
-        emb.add_field(name='Игра', value='\n'.join([g[0] for g in games]))
-        emb.add_field(name='Рейтинг', value='\n'.join([str(g[2])[:4] for g in games]))
-        emb.add_field(name='Загрузки', value='\n'.join([str(g[1]) for g in games]))
+        emb.add_field(name='Игра', value='\n'.join(g[0] for g in games))
+        emb.add_field(name='Рейтинг', value='\n'.join(str(g[2])[:4] for g in games))
+        emb.add_field(name='Загрузки', value='\n'.join(str(g[1]) for g in games))
 
         await inter.response.send_message(embed=emb)
 
@@ -581,9 +601,9 @@ class Statistic(commands.Cog):
         users = db.top_users()[:10]
 
         emb = disnake.Embed(title='Топ пользователей', color=disnake.Colour.blue())
-        emb.add_field(name='Ник', value='\n'.join(['<@' + str(i[0]) + '>' for i in users]))
-        emb.add_field(name='Скачиваний/Добавлений', value='\n'.join([str(i[2]) + ' / ' + str(i[1]) for i in users]))
-        emb.add_field(name='Отзывов', value='\n'.join([str(i[3]) for i in users]))
+        emb.add_field(name='Ник', value='\n'.join('<@' + str(i[0]) + '>' for i in users))
+        emb.add_field(name='Скачиваний/Добавлений', value='\n'.join(str(i[2]) + ' / ' + str(i[1]) for i in users))
+        emb.add_field(name='Отзывов', value='\n'.join(str(i[3]) for i in users))
 
         await inter.response.send_message(embed=emb)
 
@@ -592,6 +612,5 @@ def setup(bot: commands.Bot):
     """Регистрация команд бота."""
 
     bot.add_cog(OtherCommand(bot))
-    bot.add_cog(GameSearchCommand(bot))
-    bot.add_cog(GameNewCommand(bot))
+    bot.add_cog(GameCommand(bot))
     bot.add_cog(Statistic(bot))
